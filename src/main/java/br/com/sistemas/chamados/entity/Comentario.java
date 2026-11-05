@@ -10,6 +10,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 /** ENTITY: representa a tabela do banco. Cada objeto = uma linha. */
@@ -24,7 +25,7 @@ public class Comentario {
     @Column(nullable = false, length = 1000)
     private String texto;
 
-    @Column(nullable = false)
+    @Column(nullable = false, updatable = false)
     private LocalDateTime data;
 
     @Column(nullable = false, length = 100)
@@ -41,6 +42,14 @@ public class Comentario {
         this.autor = autor;
         this.chamado = chamado;
         this.data = LocalDateTime.now();
+    }
+
+    /** Garante a data mesmo se o objeto for criado pelo construtor vazio. */
+    @PrePersist
+    void aoCriar() {
+        if (data == null) {
+            data = LocalDateTime.now();
+        }
     }
 
     public Long getId() { return id; }

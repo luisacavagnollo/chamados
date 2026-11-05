@@ -12,6 +12,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 /** ENTITY: representa a tabela do banco. Cada objeto = uma linha. */
@@ -29,7 +30,7 @@ public class Chamado {
     @Column(nullable = false, length = 2000)
     private String descricao;
 
-    @Column(nullable = false)
+    @Column(nullable = false, updatable = false)
     private LocalDateTime dataAbertura;
 
     @Column
@@ -67,6 +68,17 @@ public class Chamado {
         this.tecnico = tecnico;
         this.status = StatusChamado.ABERTO;
         this.dataAbertura = LocalDateTime.now();
+    }
+
+    /** Garante os valores iniciais mesmo se o objeto for criado pelo construtor vazio. */
+    @PrePersist
+    void aoCriar() {
+        if (status == null) {
+            status = StatusChamado.ABERTO;
+        }
+        if (dataAbertura == null) {
+            dataAbertura = LocalDateTime.now();
+        }
     }
 
     public Long getId() { return id; }
