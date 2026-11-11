@@ -1,22 +1,85 @@
 
-package br.com.sistemas.chamados.dto;
+package br.com.sistemas.chamados.service;
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import java.util.List;
 
-public record TecnicoRequest(
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-    @NotBlank(message = "O nome é obrigatório")
-    @Size(max = 100, message = "O nome deve ter no máximo 100 caracteres")
-    String nome,
+import br.com.sistemas.chamados.dto.CategoriaRequest;
+import br.com.sistemas.chamados.dto.CategoriaResponse;
+import br.com.sistemas.chamados.entity.Categoria;
+import br.com.sistemas.chamados.exception.RecursoNaoEncontradoException;
+import br.com.sistemas.chamados.exception.RegraNegocioException;
+import br.com.sistemas.chamados.repository.CategoriaRepository;
 
-    @NotBlank(message = "O email é obrigatório")
-    @Email(message = "E-mail inválido")
-    @Size(max = 120, message = "O email deve ter no máximo 120 caracteres")
-    String email,
+@Service
+public class CategoriaService {
 
-    @Size(max = 50, message = "O perfil deve ter no máximo 50 caracteres")
-    String perfil
+    private final CategoriaRepository repository;
 
-) { }
+    public CategoriaService(CategoriaRepository repository) {
+        this.repository = repository;
+    }
+
+    @Transactional(readOnly = true)
+    public List<CategoriaResponse> listar() {
+        return repository.findAll()
+                .stream()
+                .map(CategoriaResponse::de)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public CategoriaResponse buscar(Long id) {
+        return CategoriaResponse.de(buscarEntity(id));
+    }
+
+    @Transactional
+    public CategoriaResponse criar(CategoriaRequest dto) {
+        if (repository.existsByNome(dto.nome())) {
+            throw new RegraNegocioException(
+                "Já existe uma categoria com esse nome"
+            );
+        }
+
+        Categoria categoria = new Categoria(
+            dto.nome(),
+            dto.descricao()
+        );
+
+        return CategoriaResponse.de(repository.save(categoria));
+    }
+
+    @Transactional
+    public CategoriaResponse atualizar(Long id, CategoriaRequest dto) {
+        Categoria categoria = buscarEntity(id);
+
+        if (repository.existsByNomeAndIdNot(dto.nome(), id)) {
+            throw new RegraNegocioException(
+                "Já existe uma categoria com esse nome"
+            );
+        }
+
+        categoria.setNome(dto.nome());
+        categoria.setDescricao(dto.descricao());
+
+        return CategoriaResponse.de(categoria);
+    }
+
+    @Transactional
+    public void excluir(Long id) {
+        Categoria categoria = buscarEntity(id);
+        repository.delete(categoria);
+        repository.flush();
+    }
+
+    private Categoria buscarEntity(Long id) {
+        return repository.findById(id)
+            .orElseThrow(() ->
+                new RecursoNaoEncontradoException(
+                    "Categoria não encontrada: " + id
+                )
+            );
+    }
+}
