@@ -15,14 +15,20 @@ public interface ChamadoRepository extends JpaRepository<Chamado, Long> {
     @EntityGraph(attributePaths = {"cliente", "categoria", "tecnico"})
     @Query("""
         SELECT c FROM Chamado c
+        LEFT JOIN c.tecnico tecnico
+        LEFT JOIN c.categoria categoria
         WHERE (:status IS NULL OR c.status = :status)
           AND (:prioridade IS NULL OR c.prioridade = :prioridade)
           AND (:clienteId IS NULL OR c.cliente.id = :clienteId)
+          AND (:tecnicoId IS NULL OR tecnico.id = :tecnicoId)
+          AND (:categoriaId IS NULL OR categoria.id = :categoriaId)
         """)
     Page<Chamado> filtrar(
         @Param("status") StatusChamado status,
         @Param("prioridade") Prioridade prioridade,
         @Param("clienteId") Long clienteId,
+        @Param("tecnicoId") Long tecnicoId,
+        @Param("categoriaId") Long categoriaId,
         Pageable pageable);
     @EntityGraph(attributePaths = {"cliente", "categoria", "tecnico"})
     Page<Chamado> findByClienteId(Long clienteId, Pageable pageable);

@@ -38,12 +38,16 @@ public class ChamadoController {
         @RequestParam(required = false) StatusChamado status,
         @RequestParam(required = false) Prioridade prioridade,
         @RequestParam(required = false) Long clienteId,
+        @RequestParam(required = false) Long tecnicoId,
+        @RequestParam(required = false) Long categoriaId,
         Pageable pageable
     ) {
         return service.filtrar(
             status,
             prioridade,
             clienteId,
+            tecnicoId,
+            categoriaId,
             pageable
         );
     }

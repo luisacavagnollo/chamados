@@ -92,10 +92,19 @@ public class ChamadoService {
         StatusChamado status,
         Prioridade prioridade,
         Long clienteId,
+        Long tecnicoId,
+        Long categoriaId,
         Pageable pageable
     ) {
         return repository
-            .filtrar(status, prioridade, clienteId, pageable)
+            .filtrar(
+                status,
+                prioridade,
+                clienteId,
+                tecnicoId,
+                categoriaId,
+                pageable
+            )
             .map(ChamadoResponse::de);
     }
 
