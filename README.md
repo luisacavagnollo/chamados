@@ -61,9 +61,13 @@ Por padrão, a API ficará disponível em:
 
 **http://localhost:8080**
 
-Você pode verificar a listagem de chamados em:
+Todas as rotas da API exigem autenticação HTTP Basic. A inicialização normal não cria
+contas de usuário; use o perfil `demo` descrito na seção abaixo para habilitar dados
+fictícios locais.
 
-**http://localhost:8080/chamados**
+Com o perfil `demo` ativo, a aplicação escuta somente em `127.0.0.1`.
+O endereço `/chamados` pode ser consultado por um cliente HTTP configurado com as
+credenciais de demonstração.
 
 Deixe esse terminal aberto enquanto estiver utilizando o sistema.
 
@@ -87,6 +91,57 @@ O Vite normalmente informa no terminal um endereço como:
 Abra esse endereço no navegador para acessar o HelpDesk. Se o Vite escolher outra porta, utilize a URL exibida no terminal; nesse caso, talvez seja necessário ajustar a configuração de CORS do backend.
 
 > **Importante:** o frontend depende do backend para carregar e salvar os dados. Os dois terminais devem permanecer em execução.
+
+> **Autenticação nesta etapa:** o frontend ainda não foi adaptado para enviar as
+> credenciais Basic nem o token CSRF. Portanto, a interface existente não consegue
+> operar contra o backend protegido até que essa integração seja implementada.
+
+### Perfil local de demonstração
+
+O perfil `demo` é opcional e não é ativado por padrão. Ele cria, sem sobrescrever
+registros existentes, dois clientes fictícios, um técnico, um administrador, uma
+categoria e dois chamados. As contas são `ana.cliente@exemplo.invalid`,
+`bruno.cliente@exemplo.invalid`, `caio.tecnico@exemplo.invalid` e
+`admin@exemplo.invalid`.
+
+No PowerShell, defina senhas locais antes de iniciar o backend; a entrada é oculta e
+os valores ficam somente no ambiente desse processo:
+
+```powershell
+function Set-DemoPassword($name) {
+    $secure = Read-Host "Senha para $name" -AsSecureString
+    $pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+    try {
+        [Environment]::SetEnvironmentVariable(
+            $name,
+            [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer),
+            "Process"
+        )
+    }
+    finally {
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer)
+        $secure.Dispose()
+    }
+}
+
+Set-DemoPassword "DEMO_CLIENTE_1_PASSWORD"
+Set-DemoPassword "DEMO_CLIENTE_2_PASSWORD"
+Set-DemoPassword "DEMO_TECNICO_PASSWORD"
+Set-DemoPassword "DEMO_ADMIN_PASSWORD"
+$env:SPRING_PROFILES_ACTIVE = "demo"
+.\mvnw.cmd spring-boot:run
+```
+
+Em Linux/macOS, configure as quatro variáveis `DEMO_*_PASSWORD` por um mecanismo
+seguro do ambiente e `SPRING_PROFILES_ACTIVE=demo` no processo que executa
+`./mvnw spring-boot:run`. Se alguma senha não estiver configurada, a inicialização
+do perfil falha explicitamente.
+
+HTTP Basic é somente para demonstração local. Em qualquer implantação real, exige
+HTTPS para proteger as credenciais em trânsito. A estratégia definitiva de
+autenticação será avaliada posteriormente. A proteção CSRF permanece ativa: operações
+que alteram dados também precisam enviar o token CSRF disponibilizado no cookie
+`XSRF-TOKEN` pelo backend.
 
 ## Como usar o sistema
 
@@ -143,7 +198,10 @@ O console H2 está habilitado em:
 
 **http://localhost:8080/h2-console**
 
-No projeto, o usuário configurado é `sa`, com senha vazia. A URL JDBC do banco deve ser conferida no log de inicialização do Spring Boot, pois **não está explicitamente definida** no `application.properties`.
+O console também passa pela autenticação HTTP Basic. No projeto, o usuário do banco
+está configurado como `sa`, com senha vazia. A URL JDBC deve ser conferida no log de
+inicialização do Spring Boot, pois **não está explicitamente definida** no
+`application.properties`.
 
 **Atenção:** como não há uma URL JDBC de persistência em arquivo configurada, não conte com a preservação dos registros após reiniciar a aplicação. Para garantir persistência local entre execuções, será necessário configurar um banco H2 em arquivo ou outro banco persistente.
 
@@ -162,7 +220,7 @@ Para parar os servidores, pressione **Ctrl + C** em cada terminal.
 
 ## Problemas comuns
 
-**A página abre, mas os dados não carregam:** verifique se o Spring Boot está em execução na porta 8080 e se `http://localhost:8080/chamados` responde.
+**A página abre, mas os dados não carregam:** verifique se o Spring Boot está em execução na porta 8080. As rotas agora exigem autenticação e CSRF nas operações de escrita; o frontend ainda requer integração com esses mecanismos.
 
 **Erro de CORS:** o backend está configurado para aceitar o frontend em `http://localhost:5173`. Se o Vite estiver usando outra porta, ajuste a origem permitida no `CorsConfig.java`.
 

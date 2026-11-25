@@ -12,6 +12,8 @@ import br.com.sistemas.chamados.entity.Prioridade;
 import br.com.sistemas.chamados.entity.StatusChamado;
 
 public interface ChamadoRepository extends JpaRepository<Chamado, Long> {
+    boolean existsByTituloAndClienteId(String titulo, Long clienteId);
+
     @EntityGraph(attributePaths = {"cliente", "categoria", "tecnico"})
     @Query("""
         SELECT c FROM Chamado c
