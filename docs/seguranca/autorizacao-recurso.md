@@ -12,25 +12,24 @@ contagens incorretas.
 ## Conceito e responsabilidades das camadas
 
 - **SecurityFilterChain:** mantém HTTP Basic, CSRF, sessões stateless e negação por
-  padrão. Libera aos papéis somente os endpoints que possuem validação de recurso;
-  criação/edição de chamados, criação de comentários e operações administrativas
-  continuam restritas conforme a matriz RBAC.
+  padrão. Libera as rotas de autoatendimento e comentários aos papéis autorizados;
+  rotas administrativas originais permanecem exclusivas do administrador.
 - **Identidade autenticada:** `UsuarioAutenticadoService` consulta a identidade
   persistida correspondente ao principal do Spring Security. Produz um contexto
-  limitado a papel e IDs dos vínculos com cliente/técnico; não expõe senha, hash ou
-  dados de perfil fornecidos pelo cliente. Identidade ausente, inativa, com
-  autoridade divergente ou vínculo inconsistente não recebe permissão.
+  com ID interno, papel, nome de exibição e IDs dos vínculos; não expõe senha/hash
+  nem usa dados de perfil fornecidos pelo cliente. Tanto a autenticação
+  (`UsuarioDetailsService`) quanto a autorização rejeitam vínculos inconsistentes.
 - **AutorizacaoRecursoService:** centraliza as decisões reutilizáveis de acesso a
   chamados, cadastro de cliente e operações administrativas.
 - **Services:** `ChamadoService` aplica as verificações antes de retornar ou alterar
   recursos; `ClienteService` permite ao cliente somente o cadastro vinculado;
-  `ComentarioService` verifica primeiro o acesso ao chamado associado. Alterações
-  ainda não autorizadas continuam administrativas.
+  `ComentarioService` verifica o acesso ao chamado antes de criá-lo e define a
+  autoria a partir do usuário autenticado.
 - **Repositories:** consultas por ID, listagens e filtros impõem a propriedade ou
   atribuição no banco. Filtros opcionais do request podem restringir o resultado,
   mas não substituir nem ampliar o escopo autenticado.
-- **Controllers:** preservam os contratos REST existentes e não decidem identidade
-  com dados enviados pelo frontend.
+- **Controllers:** separam os contratos administrativos dos DTOs de autoatendimento
+  e não decidem identidade com dados enviados pelo frontend.
 
 ## Políticas implementadas
 
@@ -41,9 +40,14 @@ contagens incorretas.
 - Pode filtrar por status, prioridade, categoria e parâmetros existentes; `clienteId`
   informado na URL não altera o escopo fixado pelo vínculo.
 - Pode consultar somente seu próprio cadastro em `GET /clientes/{id}`.
+- Pode criar e editar seus próprios chamados por `POST /chamados/meus` e
+  `PUT /chamados/meus/{id}`, somente com título, descrição, prioridade e categoria.
+- Pode atualizar nome e telefone em `PUT /clientes/me`.
 - Pode ler comentários somente quando tem acesso ao chamado associado.
-- Não pode criar ou editar chamados, atualizar o cadastro, alterar status, atribuir
-  técnico, excluir recursos ou criar comentários nesta etapa.
+- Pode comentar em chamados próprios abertos; o nome de exibição é obtido do cadastro
+  vinculado, e o ID interno do usuário fica associado ao registro.
+- Não pode alterar status, atribuir técnico, excluir recursos, alterar e-mail ou
+  credenciais.
 
 ### TECNICO
 
@@ -54,8 +58,10 @@ contagens incorretas.
 - Pode alterar o status somente de chamado atribuído a si, respeitando a regra que
   impede alterações em chamados fechados.
 - Pode ler comentários somente de chamados atribuídos.
-- Não pode consultar diretamente cadastros de clientes nem criar comentários,
-  atribuir técnicos ou executar operações administrativas.
+- Pode comentar em chamados atribuídos abertos; o nome de exibição é obtido do
+  cadastro vinculado, e o ID interno do usuário fica associado ao registro.
+- Não pode consultar diretamente cadastros de clientes, atribuir técnicos ou
+  executar operações administrativas.
 
 ### ADMINISTRADOR
 
@@ -77,8 +83,9 @@ proprietário/atribuição, sem retornar o objeto antes da autorização.
 ## Códigos HTTP
 
 - **200:** consulta autorizada.
-- **401:** não autenticado ou credenciais inválidas.
-- **403:** autenticado sem papel, vínculo ou autorização para o recurso. A resposta
+- **401:** não autenticado, credenciais inválidas ou identidade com vínculo
+  inconsistente rejeitada durante autenticação.
+- **403:** autenticado sem papel ou autorização para o recurso. A resposta
   de acesso negado usa mensagem genérica e não inclui dados do recurso.
 - **404:** recurso inexistente.
 - **409:** conflito com regra de negócio, como alteração de chamado fechado.
@@ -112,23 +119,21 @@ Os testes validam:
 - consulta de cadastro próprio e negação de cadastro alheio;
 - leitura de comentários condicionada ao acesso ao chamado;
 - `404` para chamado inexistente e `401` para leitura sem autenticação;
-- regra de negócio de chamado fechado e negação de identidade com vínculo
-  inconsistente.
+- regra de negócio de chamado fechado e rejeição de identidade com vínculo
+  inconsistente durante autenticação.
 
 ## Resultados de validação
 
-Na execução final solicitada com `.\mvnw.cmd clean test`, foram executados **36
-testes**, com **0 falhas, 0 erros e 0 ignorados**. A classe
-`AutorizacaoRecursoTests` contém **12 testes novos**. O build compilou com a versão
-alvo configurada no Maven (`--release 21`); os testes foram executados por um runtime
-Java 22.
+`.\mvnw.cmd clean test` terminou com **BUILD SUCCESS**: 47 testes, 0 falhas, 0 erros
+e 0 ignorados. O build compilou com `--release 21`, usando JDK 26. A cobertura da
+proteção de propriedades está em [protecao-propriedades.md](./protecao-propriedades.md).
 
 ## Limitações e riscos residuais
 
-- A etapa 4 vincula a criação e edição de chamados pelo cliente à identidade
-  autenticada e limita os campos editáveis por DTO específico.
-- Comentários de cliente/técnico são criados por `ComentarioRequest` sem `autor`;
-  o campo é derivado da identidade autenticada.
+- A criação/edição de chamados pelo cliente é limitada às rotas próprias e aos DTOs
+  específicos; propriedades extras são rejeitadas com HTTP 400.
+- Comentários de cliente/técnico são criados por `ComentarioRequest` com somente
+  `texto`; o ID e o nome de exibição do autor são derivados do usuário autenticado.
 - Técnicos não recebem uma representação reduzida dos dados de cliente; a consulta
   direta de cadastro continua restrita. A resposta atual de chamado ainda contém
   nome/ID do cliente conforme o contrato REST existente.

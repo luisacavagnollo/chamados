@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import br.com.sistemas.chamados.dto.ClienteRequest;
 import br.com.sistemas.chamados.dto.ClienteResponse;
+import br.com.sistemas.chamados.dto.ClienteAtualizacaoRequest;
 import br.com.sistemas.chamados.entity.Cliente;
 import br.com.sistemas.chamados.entity.PapelUsuario;
 import br.com.sistemas.chamados.exception.AcessoNegadoException;
@@ -82,23 +83,14 @@ public class ClienteService {
     }
 
     @Transactional
-    public ClienteResponse atualizarPorIdentidade(Long id, ClienteRequest dto) {
+    public ClienteResponse atualizarProprio(ClienteAtualizacaoRequest dto) {
         IdentidadeAutenticada identidade =
             autorizacaoRecursoService.identidadeAtual();
-        if (identidade.papel() == PapelUsuario.ADMINISTRADOR) {
-            return atualizar(id, dto);
-        }
         if (identidade.papel() != PapelUsuario.CLIENTE) {
             throw new AcessoNegadoException();
         }
-        if (dto.email() != null) {
-            throw new AcessoNegadoException();
-        }
-        if (dto.nome() == null || dto.nome().isBlank() || dto.nome().length() > 100) {
-            throw new RegraNegocioException("Nome inválido");
-        }
 
-        Cliente cliente = buscarEntity(id);
+        Cliente cliente = buscarEntity(identidade.clienteId());
         autorizacaoRecursoService.exigirAcessoAoCadastroCliente(identidade, cliente);
         cliente.setNome(dto.nome());
         cliente.setTelefone(dto.telefone());

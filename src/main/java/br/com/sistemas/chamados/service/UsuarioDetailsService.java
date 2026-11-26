@@ -25,6 +25,10 @@ public class UsuarioDetailsService implements UserDetailsService {
         Usuario usuario = repository.findByEmail(email)
             .orElseThrow(() -> new UsernameNotFoundException("Identidade não encontrada"));
 
+        if (!usuario.isVinculosConsistentes()) {
+            throw new UsernameNotFoundException("Identidade não encontrada");
+        }
+
         return User.withUsername(usuario.getEmail())
             .password(usuario.getSenhaHash())
             .disabled(!usuario.isAtivo())

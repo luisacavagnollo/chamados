@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import br.com.sistemas.chamados.dto.ClienteRequest;
 import br.com.sistemas.chamados.dto.ClienteResponse;
+import br.com.sistemas.chamados.dto.ClienteAtualizacaoRequest;
 import br.com.sistemas.chamados.service.ClienteService;
 import jakarta.validation.Valid;
 
@@ -49,7 +50,14 @@ public class ClienteController {
     public ClienteResponse atualizar(
         @PathVariable Long id,
         @Valid @RequestBody ClienteRequest dto) {
-        return service.atualizarPorIdentidade(id, dto);
+        return service.atualizar(id, dto);
+    }
+
+    @PutMapping("/me")
+    public ClienteResponse atualizarProprio(
+        @Valid @RequestBody ClienteAtualizacaoRequest dto
+    ) {
+        return service.atualizarProprio(dto);
     }
 
     @DeleteMapping("/{id}")

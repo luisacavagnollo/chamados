@@ -20,15 +20,18 @@ public class ComentarioService {
     private final ComentarioRepository repository;
     private final ChamadoService chamadoService;
     private final AutorizacaoRecursoService autorizacaoRecursoService;
+    private final UsuarioAutenticadoService usuarioAutenticadoService;
 
     public ComentarioService(
         ComentarioRepository repository,
         ChamadoService chamadoService,
-        AutorizacaoRecursoService autorizacaoRecursoService
+        AutorizacaoRecursoService autorizacaoRecursoService,
+        UsuarioAutenticadoService usuarioAutenticadoService
     ) {
         this.repository = repository;
         this.chamadoService = chamadoService;
         this.autorizacaoRecursoService = autorizacaoRecursoService;
+        this.usuarioAutenticadoService = usuarioAutenticadoService;
     }
 
     @Transactional(readOnly = true)
@@ -58,7 +61,8 @@ public class ComentarioService {
 
         Comentario comentario = new Comentario(
             dto.texto(),
-            identidade.email(),
+            identidade.nomeExibicao(),
+            usuarioAutenticadoService.obterUsuarioAtual(),
             chamado
         );
 

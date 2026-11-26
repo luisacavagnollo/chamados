@@ -12,6 +12,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.FetchType;
 
 /** ENTITY: representa a tabela do banco. Cada objeto = uma linha. */
 @Entity
@@ -31,6 +33,10 @@ public class Comentario {
     @Column(nullable = false, length = 100)
     private String autor;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "autor_usuario_id")
+    private Usuario autorUsuario;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "chamado_id", nullable = false)
     private Chamado chamado;
@@ -42,6 +48,16 @@ public class Comentario {
         this.autor = autor;
         this.chamado = chamado;
         this.data = LocalDateTime.now();
+    }
+
+    public Comentario(
+        String texto,
+        String autor,
+        Usuario autorUsuario,
+        Chamado chamado
+    ) {
+        this(texto, autor, chamado);
+        this.autorUsuario = autorUsuario;
     }
 
     /** Garante a data mesmo se o objeto for criado pelo construtor vazio. */
@@ -58,6 +74,7 @@ public class Comentario {
     public LocalDateTime getData() { return data; }
     public String getAutor() { return autor; }
     public void setAutor(String autor) { this.autor = autor; }
+    public Usuario getAutorUsuario() { return autorUsuario; }
     public Chamado getChamado() { return chamado; }
     public void setChamado(Chamado chamado) { this.chamado = chamado; }
 }

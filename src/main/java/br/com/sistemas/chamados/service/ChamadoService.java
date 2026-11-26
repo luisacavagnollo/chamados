@@ -88,36 +88,19 @@ public class ChamadoService {
     }
 
     @Transactional
-    public ChamadoResponse criarPorIdentidade(ChamadoRequest dto) {
+    public ChamadoResponse criarComoCliente(ChamadoCriacaoClienteRequest dto) {
         IdentidadeAutenticada identidade =
             autorizacaoRecursoService.identidadeAtual();
-
-        if (identidade.papel() == PapelUsuario.ADMINISTRADOR) {
-            return criar(dto);
-        }
         if (identidade.papel() != PapelUsuario.CLIENTE) {
             throw new AcessoNegadoException();
         }
-        if (dto.clienteId() != null
-            || dto.tecnicoId() != null
-            || dto.status() != null) {
-            throw new AcessoNegadoException();
-        }
-        ChamadoCriacaoClienteRequest clienteDto =
-            new ChamadoCriacaoClienteRequest(
-                dto.titulo(), dto.descricao(), dto.prioridade(), dto.categoriaId()
-            );
-        validarChamadoCliente(
-            clienteDto.titulo(), clienteDto.descricao(),
-            clienteDto.prioridade(), clienteDto.categoriaId()
-        );
 
         Cliente cliente = buscarCliente(identidade.clienteId());
         Categoria categoria = buscarCategoria(dto.categoriaId());
         Chamado chamado = new Chamado(
-            clienteDto.titulo(),
-            clienteDto.descricao(),
-            clienteDto.prioridade(),
+            dto.titulo(),
+            dto.descricao(),
+            dto.prioridade(),
             cliente,
             categoria,
             null
@@ -222,38 +205,24 @@ public class ChamadoService {
     }
 
     @Transactional
-    public ChamadoResponse atualizarPorIdentidade(Long id, ChamadoRequest dto) {
+    public ChamadoResponse atualizarComoCliente(
+        Long id,
+        ChamadoEdicaoClienteRequest dto
+    ) {
         IdentidadeAutenticada identidade =
             autorizacaoRecursoService.identidadeAtual();
-
-        if (identidade.papel() == PapelUsuario.ADMINISTRADOR) {
-            return atualizar(id, dto);
-        }
         if (identidade.papel() != PapelUsuario.CLIENTE) {
             throw new AcessoNegadoException();
         }
-        if (dto.clienteId() != null
-            || dto.tecnicoId() != null
-            || dto.status() != null) {
-            throw new AcessoNegadoException();
-        }
-        ChamadoEdicaoClienteRequest clienteDto =
-            new ChamadoEdicaoClienteRequest(
-                dto.titulo(), dto.descricao(), dto.prioridade(), dto.categoriaId()
-            );
-        validarChamadoCliente(
-            clienteDto.titulo(), clienteDto.descricao(),
-            clienteDto.prioridade(), clienteDto.categoriaId()
-        );
 
         Chamado chamado = buscarEntity(id);
         autorizacaoRecursoService.exigirEdicaoChamadoCliente(identidade, chamado);
         verificarSeAbertoParaAlteracoes(chamado);
 
-        chamado.setTitulo(clienteDto.titulo());
-        chamado.setDescricao(clienteDto.descricao());
-        chamado.setPrioridade(clienteDto.prioridade());
-        chamado.setCategoria(buscarCategoria(clienteDto.categoriaId()));
+        chamado.setTitulo(dto.titulo());
+        chamado.setDescricao(dto.descricao());
+        chamado.setPrioridade(dto.prioridade());
+        chamado.setCategoria(buscarCategoria(dto.categoriaId()));
         return ChamadoResponse.de(chamado);
     }
 
@@ -281,7 +250,10 @@ public class ChamadoService {
         Long chamadoId,
         AlterarStatusRequest dto
     ) {
-        Chamado chamado = buscarEntidadeAutorizada(chamadoId);
+        IdentidadeAutenticada identidade =
+            autorizacaoRecursoService.identidadeAtual();
+        Chamado chamado = buscarEntity(chamadoId);
+        autorizacaoRecursoService.exigirAlteracaoStatus(identidade, chamado);
 
         verificarSeAbertoParaAlteracoes(chamado);
 
@@ -354,20 +326,6 @@ public class ChamadoService {
             throw new RegraNegocioException(
                 "Não é possível alterar um chamado fechado"
             );
-        }
-    }
-
-    private void validarChamadoCliente(
-        String titulo,
-        String descricao,
-        Prioridade prioridade,
-        Long categoriaId
-    ) {
-        if (titulo == null || titulo.isBlank() || titulo.length() > 150
-            || descricao == null || descricao.isBlank() || descricao.length() > 2000
-            || prioridade == null
-            || categoriaId == null || categoriaId <= 0) {
-            throw new RegraNegocioException("Dados do chamado inválidos");
         }
     }
 

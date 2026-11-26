@@ -406,8 +406,7 @@ class AutorizacaoRecursoTests {
 
         mockMvc.perform(get("/chamados")
                 .with(httpBasic(CLIENTE_INVALIDO_EMAIL, SENHA)))
-            .andExpect(status().isForbidden())
-            .andExpect(jsonPath("$.erro").value("Acesso negado"));
+            .andExpect(status().isUnauthorized());
     }
 
     private Chamado salvarChamado(

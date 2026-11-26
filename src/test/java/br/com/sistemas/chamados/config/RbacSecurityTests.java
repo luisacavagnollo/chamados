@@ -207,7 +207,7 @@ class RbacSecurityTests {
             )
             .contentType(MediaType.APPLICATION_JSON)
             .content("""
-                {"texto":"Comentário administrativo de teste","autor":"Administrador RBAC"}
+                {"texto":"Comentário administrativo de teste"}
                 """))
             .andExpect(status().isCreated());
     }
@@ -245,7 +245,7 @@ class RbacSecurityTests {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(cliente.getId()));
         mockMvc.perform(escrita(
-                put("/clientes/{id}", cliente.getId()),
+                put("/clientes/me"),
                 CLIENTE_EMAIL,
                 csrfCliente
             )
@@ -257,7 +257,7 @@ class RbacSecurityTests {
             .andExpect(jsonPath("$.nome").value("Cliente RBAC atualizado"))
             .andExpect(jsonPath("$.email").value(CLIENTE_EMAIL));
         mockMvc.perform(escrita(
-                put("/clientes/{id}", cliente.getId()),
+                put("/clientes/me"),
                 CLIENTE_EMAIL,
                 csrfCliente
             )
@@ -265,7 +265,7 @@ class RbacSecurityTests {
             .content("""
                 {"nome":"Tentativa","telefone":"11900000000","email":"outro@exemplo.invalid"}
                 """))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isBadRequest());
         mockMvc.perform(get(
                 "/chamados/{chamadoId}/comentarios",
                 chamadoId
@@ -295,7 +295,7 @@ class RbacSecurityTests {
             .andExpect(status().isForbidden());
 
         mockMvc.perform(escrita(
-                post("/chamados"),
+                post("/chamados/meus"),
                 CLIENTE_EMAIL,
                 csrfCliente
             )
@@ -330,7 +330,7 @@ class RbacSecurityTests {
             .andExpect(status().isForbidden());
 
         mockMvc.perform(escrita(
-                put("/chamados/{id}", chamadoId),
+                put("/chamados/meus/{id}", chamadoId),
                 CLIENTE_EMAIL,
                 csrfCliente
             )
@@ -374,7 +374,7 @@ class RbacSecurityTests {
                 {"texto":"Comentário autorizado do cliente"}
                 """))
             .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.autor").value(CLIENTE_EMAIL));
+            .andExpect(jsonPath("$.autor").value("Cliente RBAC atualizado"));
         mockMvc.perform(escrita(
                 post("/chamados/{chamadoId}/comentarios", chamadoId),
                 TECNICO_EMAIL,
@@ -385,7 +385,7 @@ class RbacSecurityTests {
                 {"texto":"Comentário autorizado do técnico"}
                 """))
             .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.autor").value(TECNICO_EMAIL));
+            .andExpect(jsonPath("$.autor").value("Técnico RBAC"));
     }
 
     @Test

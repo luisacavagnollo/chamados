@@ -13,6 +13,8 @@ import br.com.sistemas.chamados.dto.AlterarStatusRequest;
 import br.com.sistemas.chamados.dto.AtribuirTecnicoRequest;
 import br.com.sistemas.chamados.dto.ChamadoResponse;
 import br.com.sistemas.chamados.dto.ChamadoRequest;
+import br.com.sistemas.chamados.dto.ChamadoCriacaoClienteRequest;
+import br.com.sistemas.chamados.dto.ChamadoEdicaoClienteRequest;
 import br.com.sistemas.chamados.entity.Prioridade;
 import br.com.sistemas.chamados.entity.StatusChamado;
 import br.com.sistemas.chamados.service.ChamadoService;
@@ -61,8 +63,18 @@ public class ChamadoController {
     public ResponseEntity<ChamadoResponse> criar(
         @Valid @RequestBody ChamadoRequest dto
     ) {
-        ChamadoResponse criado = service.criarPorIdentidade(dto);
+        ChamadoResponse criado = service.criar(dto);
 
+        return ResponseEntity
+            .created(URI.create("/chamados/" + criado.id()))
+            .body(criado);
+    }
+
+    @PostMapping("/meus")
+    public ResponseEntity<ChamadoResponse> criarProprio(
+        @Valid @RequestBody ChamadoCriacaoClienteRequest dto
+    ) {
+        ChamadoResponse criado = service.criarComoCliente(dto);
         return ResponseEntity
             .created(URI.create("/chamados/" + criado.id()))
             .body(criado);
@@ -73,7 +85,15 @@ public class ChamadoController {
         @PathVariable Long id,
         @Valid @RequestBody ChamadoRequest dto
     ) {
-        return service.atualizarPorIdentidade(id, dto);
+        return service.atualizar(id, dto);
+    }
+
+    @PutMapping("/meus/{id}")
+    public ChamadoResponse atualizarProprio(
+        @PathVariable Long id,
+        @Valid @RequestBody ChamadoEdicaoClienteRequest dto
+    ) {
+        return service.atualizarComoCliente(id, dto);
     }
 
     @PatchMapping("/{id}/status")

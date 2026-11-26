@@ -17,13 +17,13 @@ um caminho estático novo ou um subcaminho novo não herda a permissão da rota 
 
 | Operação | CLIENTE | TECNICO | ADMINISTRADOR |
 | --- | --- | --- | --- |
-| Criar chamados próprios | Pendente da etapa 4 | Não aplicável | Gerenciar chamados |
+| Criar chamados próprios | Permitido em `/chamados/meus`; proprietário vem da identidade autenticada | Não permitido | Permitido em `/chamados` |
 | Listar/consultar chamados próprios | Permitido, limitado ao cliente vinculado | Permitido, limitado aos chamados atribuídos | Gerenciar chamados |
-| Editar chamados próprios | Pendente da etapa 4 | Não permitido | Gerenciar chamados |
+| Editar chamados próprios | Permitido em `/chamados/meus/{id}`, somente campos autorizados e chamado aberto | Não permitido | Permitido em `/chamados/{id}`, sujeito às regras de negócio |
 | Alterar status de chamado atribuído | Não permitido | Permitido, somente nos chamados atribuídos | Gerenciar chamados |
 | Atribuir técnico ou excluir chamados | Não permitido | Não permitido | Gerenciar chamados, sujeito às regras de negócio |
 | Consultar o próprio cadastro de cliente | Permitido, somente o cadastro vinculado | Não permitido | Gerenciar clientes |
-| Atualizar cadastro próprio de cliente | Somente nome e telefone | Não permitido | Gerenciar clientes |
+| Atualizar cadastro próprio de cliente | Permitido em `/clientes/me`, somente nome e telefone | Não permitido | Gerenciar clientes |
 | Consultar dados de clientes | Não aplicável além do próprio cadastro | Restrito; sem endpoint próprio de consulta | Gerenciar clientes |
 | Gerenciar técnicos | Não permitido | Não permitido | Permitido |
 | Consultar categorias | Permitido | Permitido | Permitido |
@@ -42,11 +42,13 @@ um segmento numérico, compatível com os parâmetros `Long` existentes.
 | `GET /categorias`, `GET /categorias/{id}` | CLIENTE, TECNICO e ADMINISTRADOR |
 | `GET /chamados`, `GET /chamados/filtro`, `GET /chamados/{id}` | Os três papéis, com escopo do cliente/técnico aplicado no serviço e repositório |
 | `POST /chamados`, `PUT /chamados/{id}`, `DELETE /chamados/{id}` | Somente ADMINISTRADOR |
+| `POST /chamados/meus`, `PUT /chamados/meus/{id}` | Somente CLIENTE; propriedade obtida da identidade e campos limitados por DTO |
 | `PATCH /chamados/{id}/status` | TECNICO atribuído ao chamado ou ADMINISTRADOR |
 | `PATCH /chamados/{id}/tecnico` | Somente ADMINISTRADOR |
 | `GET /clientes`, `POST /clientes` | Somente ADMINISTRADOR |
 | `GET /clientes/{id}` | CLIENTE vinculado ao cadastro ou ADMINISTRADOR |
-| `PUT /clientes/{id}` | CLIENTE vinculado pode alterar nome e telefone; ADMINISTRADOR gerencia o cadastro completo |
+| `PUT /clientes/me` | Somente CLIENTE autenticado, nome e telefone |
+| `PUT /clientes/{id}` | Somente ADMINISTRADOR, gerencia o cadastro completo |
 | `DELETE /clientes/{id}` | Somente ADMINISTRADOR |
 | `GET /tecnicos`, `GET /tecnicos/{id}`, `POST /tecnicos` | Somente ADMINISTRADOR |
 | `PUT /tecnicos/{id}`, `DELETE /tecnicos/{id}` | Somente ADMINISTRADOR |
@@ -62,18 +64,14 @@ duplicada continua sendo rejeitada.
 
 As permissões ainda restritas são:
 
-- criação de chamado por cliente, que exige impor o cliente autenticado em vez de
-  confiar no `clienteId` enviado pelo request;
-- edição de chamados por cliente, até que os campos autorizados sejam definidos;
-- atualização do cadastro próprio do cliente;
 - consulta direta de dados de clientes por técnicos, até existir uma resposta com
   finalidade e minimização de dados;
-- criação de comentários por clientes e técnicos, até a autoria ser derivada da
-  identidade autenticada.
+- alterações de e-mail e credenciais pelo próprio cliente; nenhum endpoint de
+  autoatendimento para esses campos está implementado.
 
-As operações acima continuam administrativas quando há endpoint existente; novas
-rotas permanecem negadas por padrão. As leituras de chamados e comentários de cliente
-e técnico são limitadas ao vínculo de propriedade ou atribuição verificado no backend.
+As leituras de chamados e comentários de cliente e técnico são limitadas ao vínculo
+de propriedade ou atribuição verificado no backend. Rotas não mapeadas continuam
+negadas por padrão.
 
 ## Justificativa arquitetural e menor privilégio
 
@@ -120,17 +118,16 @@ API1 — Broken Object Level Authorization.
 
 `AutorizacaoRecursoTests` cobre os escopos por propriedade/atribuição, listagens,
 filtros, totais paginados, comentários, cadastro próprio, respostas HTTP e estado
-persistido. Na execução final de `.\mvnw.cmd clean test`, passaram **36 testes**,
-com **0 falhas, 0 erros e 0 ignorados**, sendo **12 testes RBAC** e **12 testes de
-autorização por recurso**. O runtime dos testes foi Java 22; o target do build é
-Java 21. Os cenários estão detalhados em
+persistido. `ProtecaoPropriedadesTests` cobre os contratos de autoatendimento,
+autoria de comentários e validações de campos. A execução de
+`.\mvnw.cmd clean test` passou com **47 testes, 0 falhas, 0 erros e 0 ignorados**
+(JDK 26, target Java 21). Os cenários estão detalhados em
 [autorizacao-recurso.md](./autorizacao-recurso.md).
 
 ## Limitações atuais
 
-- Clientes ainda não podem criar/editar chamados nem atualizar seu cadastro.
-- Técnicos ainda não podem consultar diretamente cadastros de clientes nem criar
-  comentários.
+- Técnicos ainda não podem consultar diretamente cadastros de clientes.
+- Clientes não podem alterar e-mail, papel ou credenciais por autoatendimento.
 - O frontend ainda não foi integrado ao RBAC, HTTP Basic ou CSRF.
 - Não há gerenciamento de permissões, cadastro de contas ou fluxo de recuperação de
   acesso nesta entrega.

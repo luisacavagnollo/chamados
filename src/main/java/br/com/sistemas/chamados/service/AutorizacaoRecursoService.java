@@ -72,6 +72,22 @@ public class AutorizacaoRecursoService {
         }
     }
 
+    public void exigirAlteracaoStatus(
+        IdentidadeAutenticada identidade,
+        Chamado chamado
+    ) {
+        boolean autorizado = switch (identidade.papel()) {
+            case ADMINISTRADOR -> true;
+            case TECNICO -> identidade.tecnicoId() != null
+                && chamado.getTecnico() != null
+                && identidade.tecnicoId().equals(chamado.getTecnico().getId());
+            case CLIENTE -> false;
+        };
+        if (!autorizado) {
+            throw new AcessoNegadoException();
+        }
+    }
+
     public void exigirPodeComentar(
         IdentidadeAutenticada identidade,
         Chamado chamado

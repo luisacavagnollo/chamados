@@ -47,10 +47,26 @@ public class UsuarioAutenticadoService {
         }
 
         return new IdentidadeAutenticada(
-            usuario.getEmail(),
+            usuario.getId(),
+            nomeExibicao(usuario),
             usuario.getPapel(),
             usuario.getCliente() == null ? null : usuario.getCliente().getId(),
             usuario.getTecnico() == null ? null : usuario.getTecnico().getId()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public Usuario obterUsuarioAtual() {
+        Long usuarioId = obterIdentidadeAtual().usuarioId();
+        return repository.findById(usuarioId)
+            .orElseThrow(AcessoNegadoException::new);
+    }
+
+    private String nomeExibicao(Usuario usuario) {
+        return switch (usuario.getPapel()) {
+            case CLIENTE -> usuario.getCliente().getNome();
+            case TECNICO -> usuario.getTecnico().getNome();
+            case ADMINISTRADOR -> "Administrador";
+        };
     }
 }
