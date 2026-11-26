@@ -43,6 +43,19 @@ public class SecurityAuditLogger {
         LOGGER.warn("event=AUTHENTICATION result=FAILURE");
     }
 
+    public void acessoNegadoNoServico(
+        String method,
+        String operation,
+        String role
+    ) {
+        LOGGER.warn(
+            "event=SERVICE_ACCESS_DENIED method={} operation={} role={}",
+            method,
+            operation,
+            role
+        );
+    }
+
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void chamadoAlterado(SecurityAuditEvent event) {
         LOGGER.info(

@@ -43,6 +43,7 @@ um segmento numérico, compatível com os parâmetros `Long` existentes.
 
 | Método e endpoint | Permissão aplicada |
 | --- | --- |
+| `GET /auth/me` | Os três papéis autenticados; retorna identidade minimizada |
 | `GET /categorias`, `GET /categorias/{id}` | CLIENTE, TECNICO e ADMINISTRADOR |
 | `GET /chamados`, `GET /chamados/filtro`, `GET /chamados/{id}` | Os três papéis, com escopo do cliente/técnico aplicado no serviço e repositório |
 | `POST /chamados`, `PUT /chamados/{id}`, `DELETE /chamados/{id}` | Somente ADMINISTRADOR |
@@ -130,8 +131,9 @@ API1 — Broken Object Level Authorization.
 filtros, totais paginados, comentários, cadastro próprio, respostas HTTP e estado
 persistido. `ProtecaoPropriedadesTests` cobre os contratos de autoatendimento,
 autoria de comentários e validações de campos. A execução de
-`.\mvnw.cmd clean test` passou com **61 testes, 0 falhas, 0 erros e 0 ignorados**
-(JDK 26, target Java 21). A nova classe `TratamentoErrosSegurancaTests` cobre os
+`.\mvnw.cmd clean test` passou com **66 testes, 0 falhas, 0 erros e 0 ignorados**
+(JDK 26, target Java 21). `AuthMeControllerTests` cobre `/auth/me`, minimização da
+resposta e auditoria de negações; `TratamentoErrosSegurancaTests` cobre os
 contratos de erro, CORS, logs minimizados, configuração de teste e paginação. Os
 cenários estão detalhados em
 [autorizacao-recurso.md](./autorizacao-recurso.md).
@@ -140,9 +142,10 @@ cenários estão detalhados em
 
 - Técnicos ainda não podem consultar diretamente cadastros de clientes.
 - Clientes não podem alterar e-mail, papel ou credenciais por autoatendimento.
-- O frontend ainda não foi integrado ao RBAC, HTTP Basic ou CSRF.
+- O frontend usa Basic em memória; recarregar a página encerra a autenticação local.
 - Não há gerenciamento de permissões, cadastro de contas ou fluxo de recuperação de
   acesso nesta entrega.
 - Os logs não são um registro de auditoria imutável nem possuem retenção ou alertas
-  configurados. Preflight CORS com origem rejeitada é bloqueado sem cabeçalho CORS e
+  configurados. Operações negadas são classificadas sem registrar caminhos
+  arbitrários. Preflight CORS com origem rejeitada é bloqueado sem cabeçalho CORS e
   pode usar o corpo padrão do processador CORS, fora do JSON dos handlers de segurança.

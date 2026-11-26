@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import api from "../services/api";
+import { useAuth } from "../context/useAuth";
 
 const statusLabels = {
   ABERTO: "Aberto",
@@ -69,6 +70,11 @@ function formatarData(data) {
 }
 
 export default function DetalheChamado() {
+  const { identity } = useAuth();
+  const isAdmin = identity.papel === "ADMINISTRADOR";
+  const isCliente = identity.papel === "CLIENTE";
+  const podeEditar = isAdmin || isCliente;
+  const podeGerenciarStatus = isAdmin || identity.papel === "TECNICO";
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -95,7 +101,6 @@ export default function DetalheChamado() {
   const [novoStatus, setNovoStatus] = useState("");
   const [tecnicoSelecionado, setTecnicoSelecionado] = useState("");
 
-  const [autor, setAutor] = useState("");
   const [textoComentario, setTextoComentario] = useState("");
 
   const fechado = chamado?.status === "FECHADO";
@@ -108,18 +113,23 @@ export default function DetalheChamado() {
         setCarregando(true);
         setErro("");
 
+        const requisicoesExtras = isAdmin
+          ? [
+              api.get("/clientes"),
+              api.get("/categorias"),
+              api.get("/tecnicos"),
+            ]
+          : isCliente
+            ? [api.get("/categorias")]
+            : [];
         const [
           respostaChamado,
           respostaComentarios,
-          respostaClientes,
-          respostaCategorias,
-          respostaTecnicos,
+          ...respostasExtras
         ] = await Promise.all([
           api.get(`/chamados/${id}`),
           api.get(`/chamados/${id}/comentarios`),
-          api.get("/clientes"),
-          api.get("/categorias"),
-          api.get("/tecnicos"),
+          ...requisicoesExtras,
         ]);
 
         if (!ativo) return;
@@ -128,9 +138,15 @@ export default function DetalheChamado() {
 
         setChamado(dados);
         setComentarios(respostaComentarios.data);
-        setClientes(respostaClientes.data);
-        setCategorias(respostaCategorias.data);
-        setTecnicos(respostaTecnicos.data);
+        setClientes(isAdmin ? respostasExtras[0].data : []);
+        setCategorias(
+          isAdmin
+            ? respostasExtras[1].data
+            : isCliente
+              ? respostasExtras[0].data
+              : []
+        );
+        setTecnicos(isAdmin ? respostasExtras[2].data : []);
 
         setNovoStatus(dados.status);
         setTecnicoSelecionado(
@@ -152,7 +168,7 @@ export default function DetalheChamado() {
     return () => {
       ativo = false;
     };
-  }, [id]);
+  }, [id, isAdmin, isCliente]);
 
   async function executarAcao(acao, sucesso) {
     try {
@@ -174,7 +190,7 @@ export default function DetalheChamado() {
   }
 
   function abrirEdicao() {
-    if (!chamado || fechado) return;
+    if (!chamado || fechado || !podeEditar) return;
 
     setFormulario({
       titulo: chamado.titulo,
@@ -210,31 +226,44 @@ export default function DetalheChamado() {
       titulo: formulario.titulo.trim(),
       descricao: formulario.descricao.trim(),
       prioridade: formulario.prioridade,
-      clienteId: Number(formulario.clienteId),
       categoriaId: Number(formulario.categoriaId),
-      tecnicoId: formulario.tecnicoId
-        ? Number(formulario.tecnicoId)
-        : null,
     };
+    if (isAdmin) {
+      dados.clienteId = Number(formulario.clienteId);
+      dados.tecnicoId = formulario.tecnicoId
+        ? Number(formulario.tecnicoId)
+        : null;
+    }
 
     const resposta = await executarAcao(
-      () => api.put(`/chamados/${id}`, dados),
+      () =>
+        api.put(
+          isAdmin ? `/chamados/${id}` : `/chamados/meus/${id}`,
+          dados
+        ),
       "Chamado atualizado com sucesso!"
     );
 
     if (resposta) {
       setChamado(resposta.data);
-      setTecnicoSelecionado(
-        resposta.data.tecnicoId != null
-          ? String(resposta.data.tecnicoId)
-          : ""
-      );
+      if (isAdmin) {
+        setTecnicoSelecionado(
+          resposta.data.tecnicoId != null
+            ? String(resposta.data.tecnicoId)
+            : ""
+        );
+      }
       setModalEdicao(false);
     }
   }
 
   async function alterarStatus() {
-    if (salvando || fechado || novoStatus === chamado.status) {
+    if (
+      !podeGerenciarStatus ||
+      salvando ||
+      fechado ||
+      novoStatus === chamado.status
+    ) {
       return;
     }
 
@@ -261,7 +290,7 @@ export default function DetalheChamado() {
   }
 
   async function atribuirTecnico() {
-    if (salvando || fechado || !tecnicoSelecionado) {
+    if (!isAdmin || salvando || fechado || !tecnicoSelecionado) {
       return;
     }
 
@@ -281,19 +310,13 @@ export default function DetalheChamado() {
   async function enviarComentario(evento) {
     evento.preventDefault();
 
-    if (
-      salvando ||
-      fechado ||
-      !autor.trim() ||
-      !textoComentario.trim()
-    ) {
+    if (salvando || fechado || !textoComentario.trim()) {
       return;
     }
 
     const resposta = await executarAcao(
       () =>
         api.post(`/chamados/${id}/comentarios`, {
-          autor: autor.trim(),
           texto: textoComentario.trim(),
         }),
       "Comentário adicionado com sucesso!"
@@ -310,7 +333,7 @@ export default function DetalheChamado() {
   }
 
   async function excluirChamado() {
-    if (salvando) return;
+    if (!isAdmin || salvando) return;
 
     const confirmou = window.confirm(
       "Tem certeza que deseja excluir este chamado? Essa ação não pode ser desfeita."
@@ -402,7 +425,7 @@ export default function DetalheChamado() {
             <div className="detalhe-card-header">
               <h2>Descrição do problema</h2>
 
-              {!fechado && (
+              {!fechado && podeEditar && (
                 <button
                   className="btn-secondary"
                   onClick={abrirEdicao}
@@ -467,22 +490,6 @@ export default function DetalheChamado() {
                 onSubmit={enviarComentario}
               >
                 <div className="form-group">
-                  <label htmlFor="autorComentario">
-                    Seu nome *
-                  </label>
-
-                  <input
-                    id="autorComentario"
-                    type="text"
-                    value={autor}
-                    onChange={(e) => setAutor(e.target.value)}
-                    placeholder="Nome de quem está comentando"
-                    maxLength={100}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
                   <label htmlFor="textoComentario">
                     Novo comentário *
                   </label>
@@ -504,11 +511,7 @@ export default function DetalheChamado() {
                   <button
                     className="btn-primary"
                     type="submit"
-                    disabled={
-                      salvando ||
-                      !autor.trim() ||
-                      !textoComentario.trim()
-                    }
+                    disabled={salvando || !textoComentario.trim()}
                   >
                     <Send size={17} />
                     Enviar comentário
@@ -583,7 +586,7 @@ export default function DetalheChamado() {
             </div>
           </section>
 
-          {!fechado && (
+          {!fechado && podeGerenciarStatus && (
             <section className="card detalhe-card">
               <h2>Gerenciar atendimento</h2>
 
@@ -621,72 +624,68 @@ export default function DetalheChamado() {
                 </button>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="tecnicoResponsavel">
-                  Atribuir técnico
-                </label>
+              {isAdmin && (
+                <div className="form-group">
+                  <label htmlFor="tecnicoResponsavel">
+                    Atribuir técnico
+                  </label>
 
-                <select
-                  id="tecnicoResponsavel"
-                  value={tecnicoSelecionado}
-                  onChange={(e) =>
-                    setTecnicoSelecionado(e.target.value)
-                  }
-                >
-                  <option value="">
-                    Selecione um técnico
-                  </option>
+                  <select
+                    id="tecnicoResponsavel"
+                    value={tecnicoSelecionado}
+                    onChange={(e) =>
+                      setTecnicoSelecionado(e.target.value)
+                    }
+                  >
+                    <option value="">Selecione um técnico</option>
+                    {tecnicos.map((tecnico) => (
+                      <option key={tecnico.id} value={tecnico.id}>
+                        {tecnico.nome}
+                      </option>
+                    ))}
+                  </select>
 
-                  {tecnicos.map((tecnico) => (
-                    <option
-                      key={tecnico.id}
-                      value={tecnico.id}
-                    >
-                      {tecnico.nome}
-                    </option>
-                  ))}
-                </select>
-
-                <button
-                  className="btn-secondary btn-largura-total"
-                  onClick={atribuirTecnico}
-                  disabled={
-                    salvando ||
-                    !tecnicoSelecionado ||
-                    String(chamado.tecnicoId ?? "") ===
-                      tecnicoSelecionado
-                  }
-                >
-                  Atribuir responsável
-                </button>
-              </div>
+                  <button
+                    className="btn-secondary btn-largura-total"
+                    onClick={atribuirTecnico}
+                    disabled={
+                      salvando ||
+                      !tecnicoSelecionado ||
+                      String(chamado.tecnicoId ?? "") === tecnicoSelecionado
+                    }
+                  >
+                    Atribuir responsável
+                  </button>
+                </div>
+              )}
             </section>
           )}
 
-          <section className="card detalhe-card">
-            <h2>Outras ações</h2>
+          {isAdmin && (
+            <section className="card detalhe-card">
+              <h2>Outras ações</h2>
 
-            <button
-              className="btn-excluir"
-              onClick={excluirChamado}
-              disabled={salvando || comentarios.length > 0}
-              title={
-                comentarios.length > 0
-                  ? "Chamados com comentários não podem ser excluídos"
-                  : "Excluir chamado"
-              }
-            >
-              <Trash2 size={17} />
-              Excluir chamado
-            </button>
+              <button
+                className="btn-excluir"
+                onClick={excluirChamado}
+                disabled={salvando || comentarios.length > 0}
+                title={
+                  comentarios.length > 0
+                    ? "Chamados com comentários não podem ser excluídos"
+                    : "Excluir chamado"
+                }
+              >
+                <Trash2 size={17} />
+                Excluir chamado
+              </button>
 
-            {comentarios.length > 0 && (
-              <p className="aviso-exclusao">
-                Chamados com comentários não podem ser
-                excluídos.
-              </p>
-            )}
-          </section>
+              {comentarios.length > 0 && (
+                <p className="aviso-exclusao">
+                  Chamados com comentários não podem ser excluídos.
+                </p>
+              )}
+            </section>
+          )}
         </aside>
       </div>
 
@@ -757,34 +756,27 @@ export default function DetalheChamado() {
                 </div>
 
                 <div className="form-grid">
-                  <div className="form-group">
-                    <label htmlFor="editarCliente">
-                      Cliente *
-                    </label>
-
-                    <select
-                      id="editarCliente"
-                      name="clienteId"
-                      value={formulario.clienteId}
-                      onChange={alterarCampo}
-                      required
-                    >
-                      {clientes.map((cliente) => (
-                        <option
-                          key={cliente.id}
-                          value={cliente.id}
-                        >
-                          {cliente.nome}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {isAdmin && (
+                    <div className="form-group">
+                      <label htmlFor="editarCliente">Cliente *</label>
+                      <select
+                        id="editarCliente"
+                        name="clienteId"
+                        value={formulario.clienteId}
+                        onChange={alterarCampo}
+                        required
+                      >
+                        {clientes.map((cliente) => (
+                          <option key={cliente.id} value={cliente.id}>
+                            {cliente.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
                   <div className="form-group">
-                    <label htmlFor="editarCategoria">
-                      Categoria *
-                    </label>
-
+                    <label htmlFor="editarCategoria">Categoria *</label>
                     <select
                       id="editarCategoria"
                       name="categoriaId"
@@ -793,10 +785,7 @@ export default function DetalheChamado() {
                       required
                     >
                       {categorias.map((categoria) => (
-                        <option
-                          key={categoria.id}
-                          value={categoria.id}
-                        >
+                        <option key={categoria.id} value={categoria.id}>
                           {categoria.nome}
                         </option>
                       ))}
@@ -804,10 +793,7 @@ export default function DetalheChamado() {
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="editarPrioridade">
-                      Prioridade *
-                    </label>
-
+                    <label htmlFor="editarPrioridade">Prioridade *</label>
                     <select
                       id="editarPrioridade"
                       name="prioridade"
@@ -824,31 +810,26 @@ export default function DetalheChamado() {
                     </select>
                   </div>
 
-                  <div className="form-group">
-                    <label htmlFor="editarTecnico">
-                      Técnico responsável
-                    </label>
-
-                    <select
-                      id="editarTecnico"
-                      name="tecnicoId"
-                      value={formulario.tecnicoId}
-                      onChange={alterarCampo}
-                    >
-                      <option value="">
-                        Não atribuído
-                      </option>
-
-                      {tecnicos.map((tecnico) => (
-                        <option
-                          key={tecnico.id}
-                          value={tecnico.id}
-                        >
-                          {tecnico.nome}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {isAdmin && (
+                    <div className="form-group">
+                      <label htmlFor="editarTecnico">
+                        Técnico responsável
+                      </label>
+                      <select
+                        id="editarTecnico"
+                        name="tecnicoId"
+                        value={formulario.tecnicoId}
+                        onChange={alterarCampo}
+                      >
+                        <option value="">Não atribuído</option>
+                        {tecnicos.map((tecnico) => (
+                          <option key={tecnico.id} value={tecnico.id}>
+                            {tecnico.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
               </div>
 

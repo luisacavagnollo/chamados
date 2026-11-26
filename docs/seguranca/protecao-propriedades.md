@@ -4,6 +4,7 @@
 
 | Método e endpoint | Papel | DTO de entrada | Efeito |
 | --- | --- | --- | --- |
+| `GET /auth/me` | CLIENTE, TECNICO, ADMINISTRADOR | — | Retorna papel, nome de exibição e vínculo aplicável sem e-mail/credenciais |
 | `POST /chamados` | ADMINISTRADOR | `ChamadoRequest` | Criação administrativa com cliente e técnico fornecidos pelo administrador |
 | `PUT /chamados/{id}` | ADMINISTRADOR | `ChamadoRequest` | Edição administrativa, sujeita às regras do chamado |
 | `POST /chamados/meus` | CLIENTE | `ChamadoCriacaoClienteRequest` | Cria o chamado como o cliente autenticado, sem atribuir técnico |
@@ -42,10 +43,11 @@ inválidos resultam em 400. O limite é validado no controller e aplicado també
 resolver de `Pageable`.
 
 Os logs registram eventos de autenticação com ID interno/papel, falhas sem nome de
-usuário, negações com método/caminho/papel e alterações de chamados após o commit,
-com ID interno do ator e do chamado. Não registram senha, hash, e-mail, token,
-conteúdo do chamado, comentários ou corpo da requisição. Os eventos de negócio usam
-logging da aplicação, não um histórico de auditoria imutável.
+usuário, negações com método, operação conhecida (ou `ROTA_DESCONHECIDA`) e papel,
+além de alterações de chamados após o commit com ID interno do ator e do chamado.
+Não registram caminho bruto, senha, hash, e-mail, token, conteúdo do chamado,
+comentários ou corpo da requisição. Os eventos de negócio usam logging da aplicação,
+não um histórico de auditoria imutável.
 
 ## Matriz de propriedades
 
@@ -93,9 +95,8 @@ comentários antigos: não há atribuição retroativa de identidade. O valor te
 
 Respostas de comentário não incluem e-mail, ID de identidade, senha ou hash. O nome
 de exibição é o mínimo necessário para identificar a autoria na interface. Respostas
-de chamados e clientes mantêm os campos contratuais preexistentes; a autorização
-limita quais usuários podem obtê-las. A revisão não altera o frontend nem os outros
-contratos de resposta.
+de chamados e clientes mantêm os campos contratuais preexistentes; a autorização limita quais usuários podem obtê-las. O
+frontend usa o nome/papel para renderização por perfil e não persiste credenciais.
 
 ## Verificação e testes
 
@@ -105,14 +106,24 @@ proibidas, validação administrativa, atualização de perfil, comentários e a
 status e identidade inconsistente. `RbacSecurityTests` e
 `AutorizacaoRecursoTests` mantêm a cobertura preexistente.
 
+`AuthMeControllerTests` verifica a resposta minimizada de `/auth/me` para os três
+papéis, negações de acesso e classificação segura de operações desconhecidas.
 `TratamentoErrosSegurancaTests` verifica 401/403/400/404/409/415/500, desafio Basic,
 CORS, configuração de teste, logs minimizados e limite de paginação. A execução real
-de `.\mvnw.cmd clean test` terminou em **BUILD SUCCESS**: **61 testes, 0 falhas,
+de `.\mvnw.cmd clean test` terminou em **BUILD SUCCESS**: **66 testes, 0 falhas,
 0 erros e 0 ignorados**. Por classe: `ChamadosApplicationTests` 1,
 `RbacSecurityTests` 12, `SecurityConfigTests` 7, `ClienteRequestTests` 3,
-`ChamadoRepositoryTests` 1, `AutorizacaoRecursoTests` 12,
+`ChamadoRepositoryTests` 1, `AuthMeControllerTests` 5, `AutorizacaoRecursoTests` 12,
 `ProtecaoPropriedadesTests` 11 e `TratamentoErrosSegurancaTests` 14. O build foi
 executado com JDK 26 e compilou com `--release 21`.
+
+Os testes do frontend usam Vitest/jsdom e dados fictícios: verificam login, logout,
+redirecionamento/negação por papel, menus por perfil, criação de chamado próprio,
+atualização limitada do cadastro, comentário sem autoria enviada pelo usuário,
+preservação de autenticação em 403, limpeza após 401 e configuração de Basic/CSRF/
+origem confiável. O smoke test integrado no navegador também passou com o perfil
+`demo`: login, `/auth/me`, CORS e criação de chamado próprio com CSRF válido
+retornaram sucesso; o banco H2 foi efêmero e o servidor foi encerrado ao final.
 
 ## Limitações e riscos residuais
 
@@ -127,6 +138,9 @@ executado com JDK 26 e compilou com `--release 21`.
 - Clientes não editam chamados fechados; técnicos só alteram status/comentam em
   chamados atribuídos. Administradores continuam sujeitos às regras de negócio.
 - Não há endpoint de alteração de papel, senha ou hash nesta entrega.
+- O frontend mantém a identidade e o cabeçalho Basic somente em memória; recarregar
+  a aplicação exige login novamente. A segurança efetiva continua sendo aplicada
+  pela API, não pelos menus/rotas React.
 - Os logs de auditoria não são armazenados em repositório imutável nem possuem
   política de retenção/alertas configurada. Rejeições de preflight CORS são
   bloqueadas sem cabeçalho de origem permitido e podem usar a resposta padrão do

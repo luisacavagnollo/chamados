@@ -2,6 +2,7 @@ package br.com.sistemas.chamados.exception;
 
 import java.util.List;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 
 import org.slf4j.Logger;
@@ -11,6 +12,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -20,6 +23,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.validation.BindException;
 
+import br.com.sistemas.chamados.security.SecurityAuditLogger;
+import br.com.sistemas.chamados.security.SecurityAuditOperation;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -27,9 +33,14 @@ public class GlobalExceptionHandler {
         LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     private final ErroRespostaFactory erroRespostaFactory;
+    private final SecurityAuditLogger securityAuditLogger;
 
-    public GlobalExceptionHandler(ErroRespostaFactory erroRespostaFactory) {
+    public GlobalExceptionHandler(
+        ErroRespostaFactory erroRespostaFactory,
+        SecurityAuditLogger securityAuditLogger
+    ) {
         this.erroRespostaFactory = erroRespostaFactory;
+        this.securityAuditLogger = securityAuditLogger;
     }
 
     @ExceptionHandler(RecursoNaoEncontradoException.class)
@@ -48,7 +59,27 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(AcessoNegadoException.class)
-    public ResponseEntity<ErroResposta> acessoNegado() {
+    public ResponseEntity<ErroResposta> acessoNegado(
+        HttpServletRequest request
+    ) {
+        Authentication authentication =
+            SecurityContextHolder.getContext().getAuthentication();
+        String role = authentication == null
+            ? "ANONYMOUS"
+            : authentication.getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .filter(authority -> authority.startsWith("ROLE_"))
+                .findFirst()
+                .orElse("AUTHENTICATED");
+
+        securityAuditLogger.acessoNegadoNoServico(
+            SecurityAuditOperation.metodo(request.getMethod()),
+            SecurityAuditOperation.nome(
+                request.getMethod(),
+                request.getRequestURI()
+            ),
+            role
+        );
         return montar(HttpStatus.FORBIDDEN, "Acesso negado");
     }
 

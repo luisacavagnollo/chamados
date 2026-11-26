@@ -58,6 +58,8 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authorizeHttpRequests(authorize -> authorize
+                .requestMatchers(HttpMethod.GET, "/auth/me")
+                    .hasAnyRole("CLIENTE", "TECNICO", "ADMINISTRADOR")
                 .requestMatchers(HttpMethod.GET, "/categorias")
                     .hasAnyRole("CLIENTE", "TECNICO", "ADMINISTRADOR")
                 .requestMatchers(

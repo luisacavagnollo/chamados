@@ -16,6 +16,7 @@ import {
 
 import api from "../services/api";
 import ModalChamado from "../components/ModalChamado";
+import { useAuth } from "../context/useAuth";
 
 const statusLabels = {
   ABERTO: "Aberto",
@@ -46,6 +47,8 @@ function formatarData(data) {
 }
 
 export default function Dashboard() {
+  const { identity } = useAuth();
+  const podeCriar = ["CLIENTE", "ADMINISTRADOR"].includes(identity.papel);
   const navigate = useNavigate();
 
   const [chamados, setChamados] = useState([]);
@@ -204,13 +207,15 @@ export default function Dashboard() {
             Atualizar
           </button>
 
-          <button
-            className="btn-primary"
-            onClick={() => setModalAberto(true)}
-          >
-            <Plus size={18} />
-            Novo chamado
-          </button>
+          {podeCriar && (
+            <button
+              className="btn-primary"
+              onClick={() => setModalAberto(true)}
+            >
+              <Plus size={18} />
+              Novo chamado
+            </button>
+          )}
         </div>
       </div>
 
@@ -299,13 +304,15 @@ export default function Dashboard() {
                   solicitação de suporte.
                 </p>
 
-                <button
-                  className="btn-primary"
-                  onClick={() => setModalAberto(true)}
-                >
-                  <Plus size={17} />
-                  Criar chamado
-                </button>
+                {podeCriar && (
+                  <button
+                    className="btn-primary"
+                    onClick={() => setModalAberto(true)}
+                  >
+                    <Plus size={17} />
+                    Criar chamado
+                  </button>
+                )}
               </div>
             ) : (
               <div className="table-wrapper">
@@ -396,11 +403,13 @@ export default function Dashboard() {
       )}
 
       {/* MODAL DE NOVO CHAMADO */}
-      <ModalChamado
-        aberto={modalAberto}
-        onClose={() => setModalAberto(false)}
-        onSalvo={chamadoSalvo}
-      />
+      {podeCriar && modalAberto && (
+        <ModalChamado
+          aberto
+          onClose={() => setModalAberto(false)}
+          onSalvo={chamadoSalvo}
+        />
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { X, Save } from "lucide-react";
 import api from "../services/api";
+import { useAuth } from "../context/useAuth";
 
 const formularioInicial = {
   titulo: "",
@@ -27,12 +28,14 @@ export default function ModalChamado({
   onClose,
   onSalvo,
 }) {
+  const { identity } = useAuth();
+  const isAdmin = identity.papel === "ADMINISTRADOR";
   const [formulario, setFormulario] = useState(formularioInicial);
   const [clientes, setClientes] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [tecnicos, setTecnicos] = useState([]);
 
-  const [carregando, setCarregando] = useState(false);
+  const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
 
@@ -41,29 +44,25 @@ export default function ModalChamado({
 
     let ativo = true;
 
-    setFormulario({ ...formularioInicial });
-    setErro("");
-    setCarregando(true);
-
     async function carregarDados() {
       try {
-        const [resClientes, resCategorias, resTecnicos] =
-          await Promise.all([
-            api.get("/clientes"),
-            api.get("/categorias"),
-            api.get("/tecnicos"),
-          ]);
+        const [resCategorias, resClientes, resTecnicos] = isAdmin
+          ? await Promise.all([
+              api.get("/categorias"),
+              api.get("/clientes"),
+              api.get("/tecnicos"),
+            ])
+          : [await api.get("/categorias"), { data: [] }, { data: [] }];
 
         if (!ativo) return;
 
-        setClientes(resClientes.data);
         setCategorias(resCategorias.data);
+        setClientes(resClientes.data);
         setTecnicos(resTecnicos.data);
       } catch (error) {
+        console.error("Erro ao carregar dados do chamado:", error);
         if (ativo) {
-          setErro(
-            "Não foi possível carregar clientes, categorias e técnicos."
-          );
+          setErro("Não foi possível carregar os dados do formulário.");
         }
       } finally {
         if (ativo) setCarregando(false);
@@ -75,7 +74,7 @@ export default function ModalChamado({
     return () => {
       ativo = false;
     };
-  }, [aberto]);
+  }, [aberto, isAdmin]);
 
   if (!aberto) return null;
 
@@ -99,16 +98,19 @@ export default function ModalChamado({
     const dados = {
       titulo: formulario.titulo.trim(),
       descricao: formulario.descricao.trim(),
-      clienteId: Number(formulario.clienteId),
       categoriaId: Number(formulario.categoriaId),
       prioridade: formulario.prioridade,
-      tecnicoId: formulario.tecnicoId
-        ? Number(formulario.tecnicoId)
-        : null,
     };
 
+    if (isAdmin) {
+      dados.clienteId = Number(formulario.clienteId);
+      dados.tecnicoId = formulario.tecnicoId
+        ? Number(formulario.tecnicoId)
+        : null;
+    }
+
     try {
-      await api.post("/chamados", dados);
+      await api.post(isAdmin ? "/chamados" : "/chamados/meus", dados);
 
       onSalvo();
       onClose();
@@ -124,7 +126,7 @@ export default function ModalChamado({
     !salvando &&
     formulario.titulo.trim() !== "" &&
     formulario.descricao.trim() !== "" &&
-    formulario.clienteId !== "" &&
+    (!isAdmin || formulario.clienteId !== "") &&
     formulario.categoriaId !== "";
 
   return (
@@ -172,11 +174,12 @@ export default function ModalChamado({
                 </div>
               )}
 
-              {(clientes.length === 0 ||
+              {((isAdmin && clientes.length === 0) ||
                 categorias.length === 0) && (
                 <div className="error-message">
-                  Cadastre pelo menos um cliente e uma
-                  categoria antes de abrir um chamado.
+                  {isAdmin
+                    ? "Cadastre pelo menos um cliente e uma categoria antes de abrir um chamado."
+                    : "Cadastre pelo menos uma categoria antes de abrir um chamado."}
                 </div>
               )}
 
@@ -215,28 +218,27 @@ export default function ModalChamado({
               </div>
 
               <div className="form-grid">
-                <div className="form-group">
-                  <label htmlFor="clienteId">Cliente *</label>
+                {isAdmin && (
+                  <div className="form-group">
+                    <label htmlFor="clienteId">Cliente *</label>
 
-                  <select
-                    id="clienteId"
-                    name="clienteId"
-                    value={formulario.clienteId}
-                    onChange={alterarCampo}
-                    required
-                  >
-                    <option value="">Selecione um cliente</option>
+                    <select
+                      id="clienteId"
+                      name="clienteId"
+                      value={formulario.clienteId}
+                      onChange={alterarCampo}
+                      required
+                    >
+                      <option value="">Selecione um cliente</option>
 
-                    {clientes.map((cliente) => (
-                      <option
-                        key={cliente.id}
-                        value={cliente.id}
-                      >
-                        {cliente.nome}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                      {clientes.map((cliente) => (
+                        <option key={cliente.id} value={cliente.id}>
+                          {cliente.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div className="form-group">
                   <label htmlFor="categoriaId">
@@ -284,31 +286,25 @@ export default function ModalChamado({
                   </select>
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="tecnicoId">
-                    Técnico responsável
-                  </label>
+                {isAdmin && (
+                  <div className="form-group">
+                    <label htmlFor="tecnicoId">Técnico responsável</label>
 
-                  <select
-                    id="tecnicoId"
-                    name="tecnicoId"
-                    value={formulario.tecnicoId}
-                    onChange={alterarCampo}
-                  >
-                    <option value="">
-                      Não atribuído
-                    </option>
-
-                    {tecnicos.map((tecnico) => (
-                      <option
-                        key={tecnico.id}
-                        value={tecnico.id}
-                      >
-                        {tecnico.nome}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                    <select
+                      id="tecnicoId"
+                      name="tecnicoId"
+                      value={formulario.tecnicoId}
+                      onChange={alterarCampo}
+                    >
+                      <option value="">Não atribuído</option>
+                      {tecnicos.map((tecnico) => (
+                        <option key={tecnico.id} value={tecnico.id}>
+                          {tecnico.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="form-info">
@@ -332,9 +328,9 @@ export default function ModalChamado({
                 className="btn-primary"
                 disabled={
                   !podeSalvar ||
-                  clientes.length === 0 ||
+                  (isAdmin && clientes.length === 0) ||
                   categorias.length === 0 ||
-                  Boolean(erro && !clientes.length)
+                  Boolean(erro)
                 }
               >
                 <Save size={17} />

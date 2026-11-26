@@ -13,7 +13,9 @@ contagens incorretas.
 
 - **SecurityFilterChain:** mantém HTTP Basic, CSRF, sessões stateless e negação por
   padrão. Libera as rotas de autoatendimento e comentários aos papéis autorizados;
-  rotas administrativas originais permanecem exclusivas do administrador.
+  rotas administrativas originais permanecem exclusivas do administrador. `GET
+  /auth/me` é liberado aos três papéis autenticados para o frontend obter a
+  identidade minimizada.
 - **Identidade autenticada:** `UsuarioAutenticadoService` consulta a identidade
   persistida correspondente ao principal do Spring Security. Produz um contexto
   com ID interno, papel, nome de exibição e IDs dos vínculos; não expõe senha/hash
@@ -70,6 +72,13 @@ contagens incorretas.
   previamente autorizadas.
 - Continua sujeito às regras de negócio, incluindo a proibição de editar chamados
   fechados e de comentar em chamados fechados.
+
+### Identidade da sessão
+
+`GET /auth/me` retorna `usuarioId`, `nomeExibicao`, `papel` e somente o ID do vínculo
+aplicável (`clienteId` ou `tecnicoId`). A resposta não contém e-mail, hash de senha ou
+credenciais. O endpoint usa a mesma validação de identidade vinculada aplicada nos
+services.
 
 ## Consultas, filtros e paginação
 
@@ -131,10 +140,11 @@ Os testes validam:
 
 ## Resultados de validação
 
-`.\mvnw.cmd clean test` terminou com **BUILD SUCCESS**: 61 testes, 0 falhas, 0 erros
+`.\mvnw.cmd clean test` terminou com **BUILD SUCCESS**: 66 testes, 0 falhas, 0 erros
 e 0 ignorados. O build compilou com `--release 21`, usando JDK 26.
-`TratamentoErrosSegurancaTests` cobre os novos formatos de erro, autenticação,
-negações, CORS, paginação e ausência de dados sensíveis nos logs. A cobertura da
+`AuthMeControllerTests` cobre a identidade e auditoria segura; `TratamentoErrosSegurancaTests`
+cobre os novos formatos de erro, autenticação, negações, CORS, paginação e ausência
+de dados sensíveis nos logs. A cobertura da
 proteção de propriedades está em [protecao-propriedades.md](./protecao-propriedades.md).
 
 ## Limitações e riscos residuais
@@ -148,6 +158,8 @@ proteção de propriedades está em [protecao-propriedades.md](./protecao-propri
   nome/ID do cliente conforme o contrato REST existente.
 - HTTP Basic permanece uma demonstração local; implantação real exige HTTPS e uma
   estratégia definitiva de autenticação.
+- O frontend integrado não persiste credenciais; uma recarga da página exige novo
+  login e não há renovação de sessão.
 - Os testes e dados usados são fictícios e locais. A política uniforme de `404` e a
   persistência/alerta de auditoria não são configuradas nesta entrega.
 - Os perfis locais `dev` e `demo` usam schema automático e dados em H2; ambientes

@@ -48,14 +48,14 @@ public class JsonAccessDeniedHandler implements AccessDeniedHandler {
         String evento = accessDeniedException instanceof CsrfException
             ? "CSRF_REJECTED"
             : "ACCESS_DENIED";
-        String caminho = request.getRequestURI()
-            .replaceAll("[^A-Za-z0-9/_{}.-]", "_");
-
         LOGGER.warn(
-            "event={} method={} path={} role={}",
+            "event={} method={} operation={} role={}",
             evento,
-            request.getMethod(),
-            caminho,
+            SecurityAuditOperation.metodo(request.getMethod()),
+            SecurityAuditOperation.nome(
+                request.getMethod(),
+                request.getRequestURI()
+            ),
             papel
         );
         erroRespostaFactory.escrever(

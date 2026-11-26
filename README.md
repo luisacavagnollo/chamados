@@ -94,9 +94,15 @@ Abra esse endereço no navegador para acessar o HelpDesk. Se o Vite escolher out
 
 > **Importante:** o frontend depende do backend para carregar e salvar os dados. Os dois terminais devem permanecer em execução.
 
-> **Autenticação nesta etapa:** o frontend ainda não foi adaptado para enviar as
-> credenciais Basic nem o token CSRF. Portanto, a interface existente não consegue
-> operar contra o backend protegido até que essa integração seja implementada.
+O frontend solicita as credenciais na tela de login e mantém a autorização Basic
+somente em memória. Ao recarregar a página, será necessário autenticar novamente.
+O primeiro `GET /auth/me` valida a identidade e permite que o backend emita o cookie
+`XSRF-TOKEN`; o Axios o envia como `X-XSRF-TOKEN` nas operações de escrita. O
+frontend não persiste senha ou token em `localStorage` ou `sessionStorage`.
+
+Defina `VITE_API_URL` se a API não estiver em `http://localhost:8080`. A origem do
+frontend também precisa estar autorizada em `APP_CORS_ALLOWED_ORIGINS` no processo
+do backend. Mais detalhes estão em [frontend/README.md](./frontend/README.md).
 
 ### Perfil local de demonstração
 
@@ -155,7 +161,7 @@ No menu lateral do HelpDesk, você encontrará:
 - **Técnicos:** cadastro dos profissionais responsáveis pelos atendimentos.
 - **Categorias:** organização dos tipos de solicitação.
 
-### Fluxo básico
+### Fluxo administrativo básico
 
 1. Cadastre pelo menos um **cliente** e uma **categoria**.
 2. Opcionalmente, cadastre um **técnico**.
@@ -165,6 +171,12 @@ No menu lateral do HelpDesk, você encontrará:
 6. Clique no registro da tabela para visualizar seus detalhes, atualizar o atendimento e registrar comentários.
 
 Os estados de um chamado são **Aberto**, **Em atendimento**, **Aguardando cliente** e **Fechado**. Chamados fechados não aceitam novas edições nem comentários. Chamados que já possuem comentários não podem ser excluídos, conforme as regras do backend.
+
+O acesso à interface depende do papel autenticado. Clientes criam e editam seus
+chamados por `/chamados/meus` e atualizam somente nome/telefone em `/clientes/me`;
+técnicos podem alterar status apenas quando autorizados pelo vínculo do chamado;
+administradores mantêm cadastros, atribuições e operações administrativas. Os
+controles de tela não substituem as autorizações aplicadas na API.
 
 ## Estrutura resumida do projeto
 
@@ -224,6 +236,7 @@ chamados são registrados sem incluir senhas, e-mails, tokens ou corpos de requi
 Execute os comandos a seguir dentro da pasta `frontend`:
 
 ```bash
+npm test       # Executa os testes de comportamento do frontend
 npm run dev      # Inicia o Vite em modo de desenvolvimento
 npm run build    # Gera os arquivos de produção em frontend/dist
 npm run preview  # Pré-visualiza o build de produção localmente
@@ -234,7 +247,13 @@ Para parar os servidores, pressione **Ctrl + C** em cada terminal.
 
 ## Problemas comuns
 
-**A página abre, mas os dados não carregam:** verifique se o Spring Boot está em execução na porta 8080. As rotas agora exigem autenticação e CSRF nas operações de escrita; o frontend ainda requer integração com esses mecanismos.
+**O login não consegue validar a conta:** verifique se o backend está em execução,
+se a URL configurada em `VITE_API_URL` está correta e se a conta existe no perfil
+ativo. O perfil `demo` exige as quatro senhas fictícias de demonstração.
+
+**Erro de CORS ou CSRF:** confirme que `APP_CORS_ALLOWED_ORIGINS` inclui exatamente
+a origem do Vite, sem curingas. Não remova CSRF: a interface obtém o cookie
+`XSRF-TOKEN` durante a consulta autenticada a `/auth/me`.
 
 **Erro de CORS:** o backend aceita por padrão `http://localhost:5173`. Se o Vite estiver usando outra porta, defina `APP_CORS_ALLOWED_ORIGINS` no processo do backend.
 

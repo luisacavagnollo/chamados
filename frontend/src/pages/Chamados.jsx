@@ -17,6 +17,7 @@ import {
 
 import api from "../services/api";
 import ModalChamado from "../components/ModalChamado";
+import { useAuth } from "../context/useAuth";
 
 const statusLabels = {
   ABERTO: "Aberto",
@@ -35,6 +36,9 @@ const prioridadeLabels = {
 const TAMANHO_PAGINA = 10;
 
 export default function Chamados() {
+  const { identity } = useAuth();
+  const isAdmin = identity.papel === "ADMINISTRADOR";
+  const podeCriar = ["CLIENTE", "ADMINISTRADOR"].includes(identity.papel);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -76,17 +80,19 @@ export default function Chamados() {
 
     async function carregarOpcoesFiltro() {
       try {
-        const [clientesResposta, tecnicosResposta, categoriasResposta] =
-          await Promise.all([
-            api.get("/clientes"),
-            api.get("/tecnicos"),
-            api.get("/categorias"),
-          ]);
+        const [categoriasResposta, clientesResposta, tecnicosResposta] =
+          isAdmin
+            ? await Promise.all([
+                api.get("/categorias"),
+                api.get("/clientes"),
+                api.get("/tecnicos"),
+              ])
+            : [await api.get("/categorias"), { data: [] }, { data: [] }];
 
         if (ativo) {
+          setCategorias(categoriasResposta.data);
           setClientes(clientesResposta.data);
           setTecnicos(tecnicosResposta.data);
-          setCategorias(categoriasResposta.data);
           setErroOpcoesFiltro("");
         }
       } catch (error) {
@@ -104,7 +110,7 @@ export default function Chamados() {
     return () => {
       ativo = false;
     };
-  }, []);
+  }, [isAdmin]);
 
   // Carrega os chamados usando filtros e paginação.
   useEffect(() => {
@@ -123,8 +129,8 @@ export default function Chamados() {
 
         if (status) params.status = status;
         if (prioridade) params.prioridade = prioridade;
-        if (clienteId) params.clienteId = clienteId;
-        if (tecnicoId) params.tecnicoId = tecnicoId;
+        if (isAdmin && clienteId) params.clienteId = clienteId;
+        if (isAdmin && tecnicoId) params.tecnicoId = tecnicoId;
         if (categoriaId) params.categoriaId = categoriaId;
 
         const resposta = await api.get("/chamados/filtro", {
@@ -164,6 +170,7 @@ export default function Chamados() {
     clienteId,
     tecnicoId,
     categoriaId,
+    isAdmin,
     recarregar,
   ]);
 
@@ -242,13 +249,15 @@ export default function Chamados() {
           </p>
         </div>
 
-        <button
-          className="btn-primary"
-          onClick={() => setModalAberto(true)}
-        >
-          <Plus size={18} />
-          Novo chamado
-        </button>
+        {podeCriar && (
+          <button
+            className="btn-primary"
+            onClick={() => setModalAberto(true)}
+          >
+            <Plus size={18} />
+            Novo chamado
+          </button>
+        )}
       </div>
 
       {mensagem && (
@@ -349,55 +358,45 @@ export default function Chamados() {
             </select>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="filtroCliente">
-              Cliente
-            </label>
-
-            <select
-              id="filtroCliente"
-              value={clienteId}
-              onChange={(e) =>
-                alterarFiltro("clienteId", e.target.value)
-              }
-            >
-              <option value="">Todos os clientes</option>
-
-              {clientes.map((cliente) => (
-                <option
-                  key={cliente.id}
-                  value={cliente.id}
+          {isAdmin && (
+            <>
+              <div className="form-group">
+                <label htmlFor="filtroCliente">Cliente</label>
+                <select
+                  id="filtroCliente"
+                  value={clienteId}
+                  onChange={(e) =>
+                    alterarFiltro("clienteId", e.target.value)
+                  }
                 >
-                  {cliente.nome}
-                </option>
-              ))}
-            </select>
-          </div>
+                  <option value="">Todos os clientes</option>
+                  {clientes.map((cliente) => (
+                    <option key={cliente.id} value={cliente.id}>
+                      {cliente.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          <div className="form-group">
-            <label htmlFor="filtroTecnico">
-              Técnico
-            </label>
-
-            <select
-              id="filtroTecnico"
-              value={tecnicoId}
-              onChange={(e) =>
-                alterarFiltro("tecnicoId", e.target.value)
-              }
-            >
-              <option value="">Todos os técnicos</option>
-
-              {tecnicos.map((tecnico) => (
-                <option
-                  key={tecnico.id}
-                  value={tecnico.id}
+              <div className="form-group">
+                <label htmlFor="filtroTecnico">Técnico</label>
+                <select
+                  id="filtroTecnico"
+                  value={tecnicoId}
+                  onChange={(e) =>
+                    alterarFiltro("tecnicoId", e.target.value)
+                  }
                 >
-                  {tecnico.nome}
-                </option>
-              ))}
-            </select>
-          </div>
+                  <option value="">Todos os técnicos</option>
+                  {tecnicos.map((tecnico) => (
+                    <option key={tecnico.id} value={tecnico.id}>
+                      {tecnico.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
 
           <div className="form-group">
             <label htmlFor="filtroCategoria">
@@ -566,11 +565,13 @@ export default function Chamados() {
       </section>
 
       {/* MODAL DE CADASTRO */}
-      <ModalChamado
-        aberto={modalAberto}
-        onClose={() => setModalAberto(false)}
-        onSalvo={chamadoSalvo}
-      />
+      {modalAberto && (
+        <ModalChamado
+          aberto
+          onClose={() => setModalAberto(false)}
+          onSalvo={chamadoSalvo}
+        />
+      )}
     </div>
   );
 }

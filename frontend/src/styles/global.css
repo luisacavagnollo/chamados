@@ -506,6 +506,116 @@ button:disabled {
   }
 }
 
+.sidebar-user {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 12px 24px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  overflow-wrap: anywhere;
+}
+
+.sidebar-user strong {
+  color: #334155;
+  font-size: 13px;
+}
+
+.sidebar-user span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.sidebar-logout {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 24px;
+  padding: 13px 15px;
+  border: 0;
+  border-radius: 9px;
+  color: #64748b;
+  background: transparent;
+  text-align: left;
+  font-size: 14px;
+}
+
+.sidebar-logout:hover {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.login-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+  background: #f1f5f9;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 34px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: white;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #2563eb;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.login-card h1 {
+  margin-top: 30px;
+}
+
+.login-card form {
+  margin-top: 26px;
+}
+
+.login-submit {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.access-denied {
+  max-width: 620px;
+  margin: 30px auto;
+  text-align: center;
+}
+
+.access-denied > svg {
+  color: #b91c1c;
+}
+
+.access-denied h1 {
+  margin-top: 15px;
+}
+
+.access-denied .btn-primary {
+  display: inline-flex;
+  margin-top: 12px;
+  text-decoration: none;
+}
+
+.auth-loading {
+  padding: 30px;
+  text-align: center;
+}
+
+.cadastro-proprio {
+  max-width: 680px;
+}
+
 /* TELA DE DETALHES DO CHAMADO */
 
 .detalhes-page {
