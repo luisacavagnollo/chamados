@@ -28,7 +28,6 @@ public class JsonAuthenticationEntryPoint implements AuthenticationEntryPoint {
         HttpServletResponse response,
         AuthenticationException authException
     ) throws IOException, ServletException {
-        response.setHeader("WWW-Authenticate", "Basic realm=\"chamados\"");
         erroRespostaFactory.escrever(
             response,
             HttpStatus.UNAUTHORIZED,

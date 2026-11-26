@@ -33,7 +33,7 @@ Os erros tratados pela API usam o mesmo contrato JSON:
 O nome dos campos permanece em português (`erro`, `detalhes`). Erros de validação
 retornam 400, conteúdo incompatível retorna 415, conflitos de negócio/persistência
 retornam 409, recursos ausentes retornam 404 genérico, falhas inesperadas retornam
-500 genérico. Autenticação ausente/inválida retorna 401 com `WWW-Authenticate`;
+500 genérico. Autenticação ausente/inválida retorna 401 sem `WWW-Authenticate` (o SPA monta o Basic por conta própria);
 autorização e CSRF negados retornam 403. Mensagens de parser, SQL, stack traces e
 valores de entrada não são enviados na resposta. CORS é configurável por
 `APP_CORS_ALLOWED_ORIGINS`, limitado a origens explícitas e cabeçalhos necessários.
@@ -108,7 +108,7 @@ status e identidade inconsistente. `RbacSecurityTests` e
 
 `AuthMeControllerTests` verifica a resposta minimizada de `/auth/me` para os três
 papéis, negações de acesso e classificação segura de operações desconhecidas.
-`TratamentoErrosSegurancaTests` verifica 401/403/400/404/409/415/500, desafio Basic,
+`TratamentoErrosSegurancaTests` verifica 401/403/400/404/409/415/500, ausência do desafio Basic,
 CORS, configuração de teste, logs minimizados e limite de paginação. A execução real
 de `.\mvnw.cmd clean test` terminou em **BUILD SUCCESS**: **66 testes, 0 falhas,
 0 erros e 0 ignorados**. Por classe: `ChamadosApplicationTests` 1,

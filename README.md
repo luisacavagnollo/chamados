@@ -227,7 +227,7 @@ por vírgulas. A API limita páginas de `GET /chamados/filtro` a 100 itens; valo
 inválidos de página/tamanho retornam HTTP 400.
 
 Respostas de erro da API usam JSON com `timestamp`, `status`, `erro` e `detalhes`.
-Requisições sem autenticação recebem 401 e desafio HTTP Basic; requisições negadas ou
+Requisições sem autenticação recebem 401 (sem o cabeçalho `WWW-Authenticate`, para o navegador não abrir o login nativo); requisições negadas ou
 sem CSRF válido recebem 403. Eventos de autenticação, negações e alterações de
 chamados são registrados sem incluir senhas, e-mails, tokens ou corpos de requisição.
 

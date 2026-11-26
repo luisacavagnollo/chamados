@@ -14,7 +14,7 @@ Os caminhos parametrizados aceitos pela autorização usam segmentos numéricos 
 um caminho estático novo ou um subcaminho novo não herda a permissão da rota existente.
 
 Falhas de autenticação e autorização usam JSON genérico (`timestamp`, `status`,
-`erro`, `detalhes`); requisições 401 também recebem o desafio HTTP Basic. As origens
+`erro`, `detalhes`); requisições 401 não enviam `WWW-Authenticate`. As origens
 CORS são explícitas e configuráveis por `APP_CORS_ALLOWED_ORIGINS`.
 
 ## Matriz de permissões de destino

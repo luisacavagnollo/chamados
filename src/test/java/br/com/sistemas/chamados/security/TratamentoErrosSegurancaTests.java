@@ -99,11 +99,11 @@ class TratamentoErrosSegurancaTests {
     }
 
     @Test
-    void resposta401TemContratoGenericoEDesafioBasic() throws Exception {
+    void resposta401TemContratoGenericoSemDesafioBasic() throws Exception {
         mockMvc.perform(get("/chamados"))
             .andExpect(status().isUnauthorized())
             .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-            .andExpect(header().string("WWW-Authenticate", "Basic realm=\"chamados\""))
+            .andExpect(header().doesNotExist("WWW-Authenticate"))
             .andExpect(jsonPath("$.timestamp").isNotEmpty())
             .andExpect(jsonPath("$.status").value(401))
             .andExpect(jsonPath("$.erro").value("Autenticação necessária"))

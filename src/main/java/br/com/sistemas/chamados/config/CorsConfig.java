@@ -47,7 +47,6 @@ public class CorsConfig implements WebMvcConfigurer {
                 "Content-Type",
                 "X-XSRF-TOKEN"
             )
-            .exposedHeaders("WWW-Authenticate")
             .allowCredentials(true);
     }
 }

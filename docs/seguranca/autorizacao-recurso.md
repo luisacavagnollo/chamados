@@ -96,7 +96,7 @@ retornam 400, e o limite máximo também é aplicado ao resolver de paginação.
 - **200:** consulta autorizada.
 - **401:** não autenticado, credenciais inválidas ou identidade com vínculo
   inconsistente rejeitada durante autenticação. O corpo JSON contém mensagem
-  genérica e o desafio HTTP Basic.
+  genérica, sem o cabeçalho `WWW-Authenticate` (evita o login nativo do navegador).
 - **403:** autenticado sem papel/autorização para o recurso ou token CSRF ausente ou
   inválido. Os handlers retornam JSON genérico, sem dados do recurso.
 - **404:** recurso inexistente.
