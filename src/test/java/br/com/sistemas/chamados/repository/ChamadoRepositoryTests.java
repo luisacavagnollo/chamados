@@ -90,6 +90,8 @@ class ChamadoRepositoryTests {
             cliente.getId(),
             tecnico.getId(),
             categoria.getId(),
+            null,
+            null,
             PageRequest.of(
                 0,
                 1,
@@ -111,6 +113,8 @@ class ChamadoRepositoryTests {
             null,
             tecnicoSemChamados.getId(),
             null,
+            null,
+            null,
             PageRequest.of(0, 10)
         );
 
@@ -118,6 +122,8 @@ class ChamadoRepositoryTests {
         assertThat(semResultados.getTotalElements()).isZero();
 
         Page<Chamado> semFiltros = chamadoRepository.filtrar(
+            null,
+            null,
             null,
             null,
             null,

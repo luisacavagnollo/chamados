@@ -48,15 +48,22 @@ public class SecurityConfig {
                     .hasAnyRole("CLIENTE", "TECNICO", "ADMINISTRADOR")
                 .requestMatchers(
                     HttpMethod.GET,
-                    "/chamados", "/chamados/filtro",
+                    "/chamados", "/chamados/filtro"
+                ).hasAnyRole("CLIENTE", "TECNICO", "ADMINISTRADOR")
+                .requestMatchers(
+                    HttpMethod.GET,
                     "/clientes", "/tecnicos"
                 ).hasRole("ADMINISTRADOR")
                 .requestMatchers(
                     idEndpoint(HttpMethod.GET, "/categorias")
                 ).hasAnyRole("CLIENTE", "TECNICO", "ADMINISTRADOR")
                 .requestMatchers(
-                    idEndpoint(HttpMethod.GET, "/chamados"),
-                    idEndpoint(HttpMethod.GET, "/clientes"),
+                    idEndpoint(HttpMethod.GET, "/chamados")
+                ).hasAnyRole("CLIENTE", "TECNICO", "ADMINISTRADOR")
+                .requestMatchers(
+                    idEndpoint(HttpMethod.GET, "/clientes")
+                ).hasAnyRole("CLIENTE", "ADMINISTRADOR")
+                .requestMatchers(
                     idEndpoint(HttpMethod.GET, "/tecnicos"),
                     idEndpoint(HttpMethod.PUT, "/chamados"),
                     idEndpoint(HttpMethod.PUT, "/clientes"),
@@ -76,17 +83,23 @@ public class SecurityConfig {
                 ).hasRole("ADMINISTRADOR")
                 .requestMatchers(
                     regexEndpoint(HttpMethod.GET, "^/chamados/[0-9]+/comentarios$")
-                ).hasRole("ADMINISTRADOR")
+                ).hasAnyRole("CLIENTE", "TECNICO", "ADMINISTRADOR")
                 .requestMatchers(
                     regexEndpoint(HttpMethod.POST, "^/chamados/[0-9]+/comentarios$")
                 ).hasRole("ADMINISTRADOR")
                 .requestMatchers(
                     regexEndpoint(
                         HttpMethod.PATCH,
-                        "^/chamados/[0-9]+/(status|tecnico)$"
+                        "^/chamados/[0-9]+/status$"
                     )
                 )
-                    .hasRole("ADMINISTRADOR")
+                    .hasAnyRole("TECNICO", "ADMINISTRADOR")
+                .requestMatchers(
+                    regexEndpoint(
+                        HttpMethod.PATCH,
+                        "^/chamados/[0-9]+/tecnico$"
+                    )
+                ).hasRole("ADMINISTRADOR")
                 .anyRequest().denyAll()
             )
             .httpBasic(Customizer.withDefaults())

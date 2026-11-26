@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import jakarta.servlet.http.Cookie;
@@ -231,27 +232,28 @@ class RbacSecurityTests {
     }
 
     @Test
-    void operacoesDependentesDePropriedadeOuAtribuicaoContinuamRestritas()
+    void acessosComEscopoDeClienteETecnicoSaoAutorizados()
         throws Exception {
         Cookie csrfCliente = obterCookieCsrf(CLIENTE_EMAIL);
         Cookie csrfTecnico = obterCookieCsrf(TECNICO_EMAIL);
         String chamadoId = chamadoAtribuido.getId().toString();
 
         mockMvc.perform(get("/chamados").with(httpBasic(CLIENTE_EMAIL, SENHA)))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isOk());
         mockMvc.perform(get("/clientes/{id}", cliente.getId())
                 .with(httpBasic(CLIENTE_EMAIL, SENHA)))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(cliente.getId()));
         mockMvc.perform(get(
                 "/chamados/{chamadoId}/comentarios",
                 chamadoId
             ).with(httpBasic(CLIENTE_EMAIL, SENHA)))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isOk());
         mockMvc.perform(get(
                 "/chamados/{chamadoId}/comentarios",
                 chamadoId
             ).with(httpBasic(TECNICO_EMAIL, SENHA)))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isOk());
 
         mockMvc.perform(escrita(
                 post("/chamados"),
@@ -296,7 +298,13 @@ class RbacSecurityTests {
             .content("""
                 {"status":"EM_ATENDIMENTO"}
                 """))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("EM_ATENDIMENTO"));
+
+        assertThat(chamadoRepository.findById(chamadoAtribuido.getId()))
+            .get()
+            .extracting(Chamado::getStatus)
+            .isEqualTo(StatusChamado.EM_ATENDIMENTO);
 
         mockMvc.perform(escrita(
                 post("/chamados/{chamadoId}/comentarios", chamadoId),

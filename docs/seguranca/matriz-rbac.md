@@ -17,17 +17,19 @@ um caminho estático novo ou um subcaminho novo não herda a permissão da rota 
 
 | Operação | CLIENTE | TECNICO | ADMINISTRADOR |
 | --- | --- | --- | --- |
-| Criar chamados próprios | Permitido, após vincular a identidade ao cliente | Não aplicável | Gerenciar chamados |
-| Listar/consultar chamados próprios | Permitido, limitado aos próprios chamados | Permitido, limitado aos chamados atribuídos | Gerenciar chamados |
-| Editar campos autorizados de chamados próprios | Permitido, com validação dos campos | Não aplicável | Gerenciar chamados |
+| Criar chamados próprios | Pendente da etapa 4 | Não aplicável | Gerenciar chamados |
+| Listar/consultar chamados próprios | Permitido, limitado ao cliente vinculado | Permitido, limitado aos chamados atribuídos | Gerenciar chamados |
+| Editar chamados próprios | Pendente da etapa 4 | Não permitido | Gerenciar chamados |
 | Alterar status de chamado atribuído | Não permitido | Permitido, somente nos chamados atribuídos | Gerenciar chamados |
 | Atribuir técnico ou excluir chamados | Não permitido | Não permitido | Gerenciar chamados, sujeito às regras de negócio |
-| Consultar/atualizar o próprio cadastro de cliente | Permitido, somente o cadastro vinculado | Não permitido | Gerenciar clientes |
-| Consultar dados de clientes | Não aplicável além do próprio cadastro | Somente os dados necessários a atendimentos atribuídos | Gerenciar clientes |
+| Consultar o próprio cadastro de cliente | Permitido, somente o cadastro vinculado | Não permitido | Gerenciar clientes |
+| Atualizar cadastro próprio de cliente | Pendente da etapa 4 | Não permitido | Gerenciar clientes |
+| Consultar dados de clientes | Não aplicável além do próprio cadastro | Restrito; sem endpoint próprio de consulta | Gerenciar clientes |
 | Gerenciar técnicos | Não permitido | Não permitido | Permitido |
 | Consultar categorias | Permitido | Permitido | Permitido |
 | Criar/editar/excluir categorias | Não permitido | Não permitido | Permitido |
-| Consultar/criar comentários | Somente em chamados próprios | Somente em chamados atribuídos | Permitido |
+| Consultar comentários | Somente em chamados próprios | Somente em chamados atribuídos | Permitido |
+| Criar comentários | Restrito até a etapa 4 | Restrito até a etapa 4 | Permitido |
 | Gerenciar permissões | Não permitido | Não permitido | Não implementado nesta etapa |
 
 ## Permissões implementadas nesta etapa
@@ -38,14 +40,17 @@ um segmento numérico, compatível com os parâmetros `Long` existentes.
 | Método e endpoint | Permissão aplicada |
 | --- | --- |
 | `GET /categorias`, `GET /categorias/{id}` | CLIENTE, TECNICO e ADMINISTRADOR |
-| `GET /chamados`, `GET /chamados/filtro`, `GET /chamados/{id}` | Somente ADMINISTRADOR |
+| `GET /chamados`, `GET /chamados/filtro`, `GET /chamados/{id}` | Os três papéis, com escopo do cliente/técnico aplicado no serviço e repositório |
 | `POST /chamados`, `PUT /chamados/{id}`, `DELETE /chamados/{id}` | Somente ADMINISTRADOR |
-| `PATCH /chamados/{id}/status`, `PATCH /chamados/{id}/tecnico` | Somente ADMINISTRADOR |
-| `GET /clientes`, `GET /clientes/{id}`, `POST /clientes` | Somente ADMINISTRADOR |
+| `PATCH /chamados/{id}/status` | TECNICO atribuído ao chamado ou ADMINISTRADOR |
+| `PATCH /chamados/{id}/tecnico` | Somente ADMINISTRADOR |
+| `GET /clientes`, `POST /clientes` | Somente ADMINISTRADOR |
+| `GET /clientes/{id}` | CLIENTE vinculado ao cadastro ou ADMINISTRADOR |
 | `PUT /clientes/{id}`, `DELETE /clientes/{id}` | Somente ADMINISTRADOR |
 | `GET /tecnicos`, `GET /tecnicos/{id}`, `POST /tecnicos` | Somente ADMINISTRADOR |
 | `PUT /tecnicos/{id}`, `DELETE /tecnicos/{id}` | Somente ADMINISTRADOR |
-| `GET /chamados/{id}/comentarios`, `POST /chamados/{id}/comentarios` | Somente ADMINISTRADOR |
+| `GET /chamados/{id}/comentarios` | Cliente dono do chamado, técnico atribuído ou ADMINISTRADOR |
+| `POST /chamados/{id}/comentarios` | Somente ADMINISTRADOR |
 | Qualquer outro método ou caminho, inclusive novas rotas nas famílias acima | Negada por padrão |
 
 A permissão administrativa não contorna as regras dos serviços de negócio. Por
@@ -54,40 +59,36 @@ duplicada continua sendo rejeitada.
 
 ## Permissões pendentes de autorização por recurso
 
-CLIENTE e TECNICO ainda não recebem acesso às operações de chamados, clientes ou
-comentários, inclusive leitura. A liberação exige verificar o vínculo do usuário com
-o cliente ou técnico do recurso. Também permanecem restritas:
+As permissões ainda restritas são:
 
 - criação de chamado por cliente, que exige impor o cliente autenticado em vez de
   confiar no `clienteId` enviado pelo request;
-- listagem, busca e edição de chamados próprios, com filtragem e campos permitidos;
-- alteração de status por técnico, limitada aos chamados atribuídos;
-- leitura e criação de comentários, limitada ao titular/atendente do chamado;
-- consulta dos dados de cliente por técnico, limitada aos atendimentos autorizados;
-- leitura e atualização do cadastro próprio de cliente.
+- edição de chamados por cliente, até que os campos autorizados sejam definidos;
+- atualização do cadastro próprio do cliente;
+- consulta direta de dados de clientes por técnicos, até existir uma resposta com
+  finalidade e minimização de dados;
+- criação de comentários por clientes e técnicos, até a autoria ser derivada da
+  identidade autenticada.
 
-Não há permissão temporária ampla para substituir essas verificações. Essas operações
-permanecem disponíveis somente ao administrador (ou, para rotas ainda não previstas,
-negadas a todos).
+As operações acima continuam administrativas quando há endpoint existente; novas
+rotas permanecem negadas por padrão. As leituras de chamados e comentários de cliente
+e técnico são limitadas ao vínculo de propriedade ou atribuição verificado no backend.
 
 ## Justificativa arquitetural e menor privilégio
 
 As regras por método e rota protegem funções administrativas independentemente do
-conteúdo do request. As permissões de leitura de categorias são seguras por papel:
-não dependem da identidade de um recurso específico. Em contraste, as operações de
-chamados, clientes e comentários dependem de propriedade, atribuição ou campos
-editáveis; concedê-las somente por papel permitiria acesso horizontal indevido.
+conteúdo do request. As permissões de leitura de categorias são seguras por papel.
+As permissões de chamados e comentários, ao contrário, consultam o vínculo com o
+recurso; a paginação e os filtros também são limitados na consulta ao banco.
 
 O uso de `anyRequest().denyAll()` exige uma decisão explícita quando novos endpoints
 são adicionados. As autoridades são as da identidade autenticada; não se usa o campo
 de perfil legado do técnico.
 
-A segurança em nível de método não foi habilitada nesta etapa. As regras atualmente
-implementadas são de rota e papel, centralizadas na cadeia de filtros; duplicá-las
-com anotações nos controllers ou serviços não acrescentaria uma verificação de
-propriedade. Na etapa seguinte, a autorização por recurso deverá ser aplicada junto
-à consulta/mutação do serviço de domínio, usando uma estratégia centralizada e
-testável, sem duplicar a mesma matriz em várias camadas.
+A segurança em nível de método não foi habilitada nesta etapa. As permissões por
+recurso são centralizadas nos serviços de autorização/negócio e aplicadas nas
+consultas relevantes do repositório; as rotas apenas liberam os papéis que podem
+invocar essas verificações.
 
 ## OWASP API5: Broken Function Level Authorization
 
@@ -98,9 +99,9 @@ HTTP e nega rotas não mapeadas. Os testes verificam que CLIENTE e TECNICO não
 conseguem criar ou excluir categorias, mesmo apresentando autenticação válida e
 token CSRF válido.
 
-O controle por papel não resolve autorização em nível de objeto. As verificações
-para impedir que um cliente acesse chamados alheios ou que um técnico altere
-chamados não atribuídos são pendências da próxima etapa.
+O controle por papel é complementado pelas verificações de recurso documentadas em
+[autorizacao-recurso.md](./autorizacao-recurso.md), que reduzem o risco de OWASP
+API1 — Broken Object Level Authorization.
 
 ## Evidências de testes
 
@@ -116,13 +117,19 @@ chamados não atribuídos são pendências da próxima etapa.
 - negação de escritas não mapeadas com token CSRF válido;
 - preservação da regra de negócio que impede editar chamados fechados.
 
-Execução final de `.\mvnw.cmd test`: **24 testes executados, 0 falhas, 0 erros e
-0 ignorados**, incluindo **12 testes RBAC** em `RbacSecurityTests`.
+`AutorizacaoRecursoTests` cobre os escopos por propriedade/atribuição, listagens,
+filtros, totais paginados, comentários, cadastro próprio, respostas HTTP e estado
+persistido. Na execução final de `.\mvnw.cmd clean test`, passaram **36 testes**,
+com **0 falhas, 0 erros e 0 ignorados**, sendo **12 testes RBAC** e **12 testes de
+autorização por recurso**. O runtime dos testes foi Java 22; o target do build é
+Java 21. Os cenários estão detalhados em
+[autorizacao-recurso.md](./autorizacao-recurso.md).
 
 ## Limitações atuais
 
-- Não há autorização por propriedade, atribuição ou campos de request.
-- Somente o administrador pode usar endpoints de chamados e comentários nesta etapa.
+- Clientes ainda não podem criar/editar chamados nem atualizar seu cadastro.
+- Técnicos ainda não podem consultar diretamente cadastros de clientes nem criar
+  comentários.
 - O frontend ainda não foi integrado ao RBAC, HTTP Basic ou CSRF.
 - Não há gerenciamento de permissões, cadastro de contas ou fluxo de recuperação de
   acesso nesta entrega.

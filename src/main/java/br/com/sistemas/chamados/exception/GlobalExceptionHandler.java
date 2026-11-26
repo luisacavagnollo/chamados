@@ -22,6 +22,11 @@ public class GlobalExceptionHandler {
         return montar(HttpStatus.CONFLICT, ex.getMessage(), List.of());
     }
 
+    @ExceptionHandler(AcessoNegadoException.class)
+    public ResponseEntity<ErroResposta> acessoNegado() {
+        return montar(HttpStatus.FORBIDDEN, "Acesso negado", List.of());
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErroResposta> validacao(MethodArgumentNotValidException ex) {
         List<String> detalhes = ex.getBindingResult().getFieldErrors().stream()

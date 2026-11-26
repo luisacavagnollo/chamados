@@ -3,6 +3,7 @@ package br.com.sistemas.chamados.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,10 +18,12 @@ import br.com.sistemas.chamados.dto.ChamadoResponse;
 import br.com.sistemas.chamados.entity.Categoria;
 import br.com.sistemas.chamados.entity.Chamado;
 import br.com.sistemas.chamados.entity.Cliente;
+import br.com.sistemas.chamados.entity.PapelUsuario;
 import br.com.sistemas.chamados.entity.Prioridade;
 import br.com.sistemas.chamados.entity.StatusChamado;
 import br.com.sistemas.chamados.entity.Tecnico;
 
+import br.com.sistemas.chamados.exception.AcessoNegadoException;
 import br.com.sistemas.chamados.exception.RecursoNaoEncontradoException;
 import br.com.sistemas.chamados.exception.RegraNegocioException;
 
@@ -29,6 +32,7 @@ import br.com.sistemas.chamados.repository.ChamadoRepository;
 import br.com.sistemas.chamados.repository.ClienteRepository;
 import br.com.sistemas.chamados.repository.ComentarioRepository;
 import br.com.sistemas.chamados.repository.TecnicoRepository;
+import br.com.sistemas.chamados.security.IdentidadeAutenticada;
 
 @Service
 public class ChamadoService {
@@ -38,23 +42,29 @@ public class ChamadoService {
     private final CategoriaRepository categoriaRepository;
     private final TecnicoRepository tecnicoRepository;
     private final ComentarioRepository comentarioRepository;
+    private final AutorizacaoRecursoService autorizacaoRecursoService;
 
     public ChamadoService(
         ChamadoRepository repository,
         ClienteRepository clienteRepository,
         CategoriaRepository categoriaRepository,
         TecnicoRepository tecnicoRepository,
-        ComentarioRepository comentarioRepository
+        ComentarioRepository comentarioRepository,
+        AutorizacaoRecursoService autorizacaoRecursoService
     ) {
         this.repository = repository;
         this.clienteRepository = clienteRepository;
         this.categoriaRepository = categoriaRepository;
         this.tecnicoRepository = tecnicoRepository;
         this.comentarioRepository = comentarioRepository;
+        this.autorizacaoRecursoService = autorizacaoRecursoService;
     }
 
     @Transactional
     public ChamadoResponse criar(ChamadoRequest dto) {
+        autorizacaoRecursoService.exigirAdministrador(
+            autorizacaoRecursoService.identidadeAtual()
+        );
 
         Cliente cliente = buscarCliente(dto.clienteId());
         Categoria categoria = buscarCategoria(dto.categoriaId());
@@ -76,7 +86,15 @@ public class ChamadoService {
 
     @Transactional(readOnly = true)
     public List<ChamadoResponse> listar() {
-        return repository.findAll()
+        IdentidadeAutenticada identidade =
+            autorizacaoRecursoService.identidadeAtual();
+        List<Chamado> chamados = switch (identidade.papel()) {
+            case ADMINISTRADOR -> repository.findAll();
+            case CLIENTE -> repository.findAllByClienteId(identidade.clienteId());
+            case TECNICO -> repository.findAllByTecnicoId(identidade.tecnicoId());
+        };
+
+        return chamados
             .stream()
             .map(ChamadoResponse::de)
             .toList();
@@ -84,7 +102,7 @@ public class ChamadoService {
 
     @Transactional(readOnly = true)
     public ChamadoResponse buscar(Long id) {
-        return ChamadoResponse.de(buscarEntity(id));
+        return ChamadoResponse.de(buscarEntidadeAutorizada(id));
     }
 
     @Transactional(readOnly = true)
@@ -96,6 +114,15 @@ public class ChamadoService {
         Long categoriaId,
         Pageable pageable
     ) {
+        IdentidadeAutenticada identidade =
+            autorizacaoRecursoService.identidadeAtual();
+        Long escopoClienteId = identidade.papel() == PapelUsuario.CLIENTE
+            ? identidade.clienteId()
+            : null;
+        Long escopoTecnicoId = identidade.papel() == PapelUsuario.TECNICO
+            ? identidade.tecnicoId()
+            : null;
+
         return repository
             .filtrar(
                 status,
@@ -103,6 +130,8 @@ public class ChamadoService {
                 clienteId,
                 tecnicoId,
                 categoriaId,
+                escopoClienteId,
+                escopoTecnicoId,
                 pageable
             )
             .map(ChamadoResponse::de);
@@ -113,7 +142,12 @@ public class ChamadoService {
         Long clienteId,
         Pageable pageable
     ) {
-        buscarCliente(clienteId);
+        IdentidadeAutenticada identidade =
+            autorizacaoRecursoService.identidadeAtual();
+        autorizacaoRecursoService.exigirAcessoAoCadastroCliente(
+            identidade,
+            buscarCliente(clienteId)
+        );
 
         return repository
             .findByClienteId(clienteId, pageable)
@@ -125,6 +159,9 @@ public class ChamadoService {
         Long id,
         ChamadoRequest dto
     ) {
+        autorizacaoRecursoService.exigirAdministrador(
+            autorizacaoRecursoService.identidadeAtual()
+        );
         Chamado chamado = buscarEntity(id);
 
         verificarSeAbertoParaAlteracoes(chamado);
@@ -148,6 +185,9 @@ public class ChamadoService {
         Long chamadoId,
         AtribuirTecnicoRequest dto
     ) {
+        autorizacaoRecursoService.exigirAdministrador(
+            autorizacaoRecursoService.identidadeAtual()
+        );
         Chamado chamado = buscarEntity(chamadoId);
 
         verificarSeAbertoParaAlteracoes(chamado);
@@ -164,7 +204,7 @@ public class ChamadoService {
         Long chamadoId,
         AlterarStatusRequest dto
     ) {
-        Chamado chamado = buscarEntity(chamadoId);
+        Chamado chamado = buscarEntidadeAutorizada(chamadoId);
 
         verificarSeAbertoParaAlteracoes(chamado);
 
@@ -189,6 +229,9 @@ public class ChamadoService {
 
     @Transactional
     public void excluir(Long id) {
+        autorizacaoRecursoService.exigirAdministrador(
+            autorizacaoRecursoService.identidadeAtual()
+        );
         Chamado chamado = buscarEntity(id);
 
         if (!comentarioRepository.findByChamadoId(id).isEmpty()) {
@@ -198,6 +241,34 @@ public class ChamadoService {
         }
 
         repository.delete(chamado);
+    }
+
+    @Transactional(readOnly = true)
+    public Chamado buscarEntidadeAutorizada(Long id) {
+        IdentidadeAutenticada identidade =
+            autorizacaoRecursoService.identidadeAtual();
+
+        Optional<Chamado> resultado = switch (identidade.papel()) {
+            case ADMINISTRADOR -> repository.findById(id);
+            case CLIENTE -> repository.findByIdAndClienteId(
+                id,
+                identidade.clienteId()
+            );
+            case TECNICO -> repository.findByIdAndTecnicoId(
+                id,
+                identidade.tecnicoId()
+            );
+        };
+
+        if (resultado.isPresent()) {
+            Chamado chamado = resultado.get();
+            autorizacaoRecursoService.exigirAcessoAoChamado(identidade, chamado);
+            return chamado;
+        }
+        if (repository.existsById(id)) {
+            throw new AcessoNegadoException();
+        }
+        throw new RecursoNaoEncontradoException("Chamado não encontrado");
     }
 
     private void verificarSeAbertoParaAlteracoes(Chamado chamado) {
