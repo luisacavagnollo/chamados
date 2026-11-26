@@ -7,14 +7,16 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.util.matcher.RegexRequestMatcher;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
-import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
 @Configuration
@@ -42,10 +44,61 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authorizeHttpRequests(authorize -> authorize
-                .anyRequest().authenticated()
+                .requestMatchers(HttpMethod.GET, "/categorias")
+                    .hasAnyRole("CLIENTE", "TECNICO", "ADMINISTRADOR")
+                .requestMatchers(
+                    HttpMethod.GET,
+                    "/chamados", "/chamados/filtro",
+                    "/clientes", "/tecnicos"
+                ).hasRole("ADMINISTRADOR")
+                .requestMatchers(
+                    idEndpoint(HttpMethod.GET, "/categorias")
+                ).hasAnyRole("CLIENTE", "TECNICO", "ADMINISTRADOR")
+                .requestMatchers(
+                    idEndpoint(HttpMethod.GET, "/chamados"),
+                    idEndpoint(HttpMethod.GET, "/clientes"),
+                    idEndpoint(HttpMethod.GET, "/tecnicos"),
+                    idEndpoint(HttpMethod.PUT, "/chamados"),
+                    idEndpoint(HttpMethod.PUT, "/clientes"),
+                    idEndpoint(HttpMethod.PUT, "/tecnicos"),
+                    idEndpoint(HttpMethod.PUT, "/categorias"),
+                    idEndpoint(HttpMethod.DELETE, "/chamados"),
+                    idEndpoint(HttpMethod.DELETE, "/clientes"),
+                    idEndpoint(HttpMethod.DELETE, "/tecnicos"),
+                    idEndpoint(HttpMethod.DELETE, "/categorias")
+                ).hasRole("ADMINISTRADOR")
+                .requestMatchers(
+                    HttpMethod.POST,
+                    "/chamados",
+                    "/clientes",
+                    "/tecnicos",
+                    "/categorias"
+                ).hasRole("ADMINISTRADOR")
+                .requestMatchers(
+                    regexEndpoint(HttpMethod.GET, "^/chamados/[0-9]+/comentarios$")
+                ).hasRole("ADMINISTRADOR")
+                .requestMatchers(
+                    regexEndpoint(HttpMethod.POST, "^/chamados/[0-9]+/comentarios$")
+                ).hasRole("ADMINISTRADOR")
+                .requestMatchers(
+                    regexEndpoint(
+                        HttpMethod.PATCH,
+                        "^/chamados/[0-9]+/(status|tecnico)$"
+                    )
+                )
+                    .hasRole("ADMINISTRADOR")
+                .anyRequest().denyAll()
             )
             .httpBasic(Customizer.withDefaults())
             .build();
+    }
+
+    private static RegexRequestMatcher idEndpoint(HttpMethod method, String path) {
+        return regexEndpoint(method, "^" + path + "/[0-9]+$");
+    }
+
+    private static RegexRequestMatcher regexEndpoint(HttpMethod method, String regex) {
+        return RegexRequestMatcher.regexMatcher(method, regex);
     }
 
     @Bean
