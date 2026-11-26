@@ -23,13 +23,13 @@ um caminho estático novo ou um subcaminho novo não herda a permissão da rota 
 | Alterar status de chamado atribuído | Não permitido | Permitido, somente nos chamados atribuídos | Gerenciar chamados |
 | Atribuir técnico ou excluir chamados | Não permitido | Não permitido | Gerenciar chamados, sujeito às regras de negócio |
 | Consultar o próprio cadastro de cliente | Permitido, somente o cadastro vinculado | Não permitido | Gerenciar clientes |
-| Atualizar cadastro próprio de cliente | Pendente da etapa 4 | Não permitido | Gerenciar clientes |
+| Atualizar cadastro próprio de cliente | Somente nome e telefone | Não permitido | Gerenciar clientes |
 | Consultar dados de clientes | Não aplicável além do próprio cadastro | Restrito; sem endpoint próprio de consulta | Gerenciar clientes |
 | Gerenciar técnicos | Não permitido | Não permitido | Permitido |
 | Consultar categorias | Permitido | Permitido | Permitido |
 | Criar/editar/excluir categorias | Não permitido | Não permitido | Permitido |
 | Consultar comentários | Somente em chamados próprios | Somente em chamados atribuídos | Permitido |
-| Criar comentários | Restrito até a etapa 4 | Restrito até a etapa 4 | Permitido |
+| Criar comentários | Somente em chamados próprios; autoria da identidade | Somente em chamados atribuídos; autoria da identidade | Permitido |
 | Gerenciar permissões | Não permitido | Não permitido | Não implementado nesta etapa |
 
 ## Permissões implementadas nesta etapa
@@ -46,11 +46,12 @@ um segmento numérico, compatível com os parâmetros `Long` existentes.
 | `PATCH /chamados/{id}/tecnico` | Somente ADMINISTRADOR |
 | `GET /clientes`, `POST /clientes` | Somente ADMINISTRADOR |
 | `GET /clientes/{id}` | CLIENTE vinculado ao cadastro ou ADMINISTRADOR |
-| `PUT /clientes/{id}`, `DELETE /clientes/{id}` | Somente ADMINISTRADOR |
+| `PUT /clientes/{id}` | CLIENTE vinculado pode alterar nome e telefone; ADMINISTRADOR gerencia o cadastro completo |
+| `DELETE /clientes/{id}` | Somente ADMINISTRADOR |
 | `GET /tecnicos`, `GET /tecnicos/{id}`, `POST /tecnicos` | Somente ADMINISTRADOR |
 | `PUT /tecnicos/{id}`, `DELETE /tecnicos/{id}` | Somente ADMINISTRADOR |
 | `GET /chamados/{id}/comentarios` | Cliente dono do chamado, técnico atribuído ou ADMINISTRADOR |
-| `POST /chamados/{id}/comentarios` | Somente ADMINISTRADOR |
+| `POST /chamados/{id}/comentarios` | Cliente dono, técnico atribuído ou ADMINISTRADOR |
 | Qualquer outro método ou caminho, inclusive novas rotas nas famílias acima | Negada por padrão |
 
 A permissão administrativa não contorna as regras dos serviços de negócio. Por

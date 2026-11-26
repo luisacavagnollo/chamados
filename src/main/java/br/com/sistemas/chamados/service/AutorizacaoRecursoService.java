@@ -60,4 +60,32 @@ public class AutorizacaoRecursoService {
             throw new AcessoNegadoException();
         }
     }
+
+    public void exigirEdicaoChamadoCliente(
+        IdentidadeAutenticada identidade,
+        Chamado chamado
+    ) {
+        if (identidade.papel() != PapelUsuario.CLIENTE
+            || identidade.clienteId() == null
+            || !identidade.clienteId().equals(chamado.getCliente().getId())) {
+            throw new AcessoNegadoException();
+        }
+    }
+
+    public void exigirPodeComentar(
+        IdentidadeAutenticada identidade,
+        Chamado chamado
+    ) {
+        boolean autorizado = switch (identidade.papel()) {
+            case ADMINISTRADOR -> true;
+            case CLIENTE -> identidade.clienteId() != null
+                && identidade.clienteId().equals(chamado.getCliente().getId());
+            case TECNICO -> identidade.tecnicoId() != null
+                && chamado.getTecnico() != null
+                && identidade.tecnicoId().equals(chamado.getTecnico().getId());
+        };
+        if (!autorizado) {
+            throw new AcessoNegadoException();
+        }
+    }
 }

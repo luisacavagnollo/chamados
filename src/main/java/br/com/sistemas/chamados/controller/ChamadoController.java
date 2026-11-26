@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.*;
 
 import br.com.sistemas.chamados.dto.AlterarStatusRequest;
 import br.com.sistemas.chamados.dto.AtribuirTecnicoRequest;
-import br.com.sistemas.chamados.dto.ChamadoRequest;
 import br.com.sistemas.chamados.dto.ChamadoResponse;
+import br.com.sistemas.chamados.dto.ChamadoRequest;
 import br.com.sistemas.chamados.entity.Prioridade;
 import br.com.sistemas.chamados.entity.StatusChamado;
 import br.com.sistemas.chamados.service.ChamadoService;
@@ -61,7 +61,7 @@ public class ChamadoController {
     public ResponseEntity<ChamadoResponse> criar(
         @Valid @RequestBody ChamadoRequest dto
     ) {
-        ChamadoResponse criado = service.criar(dto);
+        ChamadoResponse criado = service.criarPorIdentidade(dto);
 
         return ResponseEntity
             .created(URI.create("/chamados/" + criado.id()))
@@ -73,7 +73,7 @@ public class ChamadoController {
         @PathVariable Long id,
         @Valid @RequestBody ChamadoRequest dto
     ) {
-        return service.atualizar(id, dto);
+        return service.atualizarPorIdentidade(id, dto);
     }
 
     @PatchMapping("/{id}/status")

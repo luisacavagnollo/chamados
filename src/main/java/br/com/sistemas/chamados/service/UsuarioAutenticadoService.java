@@ -47,6 +47,7 @@ public class UsuarioAutenticadoService {
         }
 
         return new IdentidadeAutenticada(
+            usuario.getEmail(),
             usuario.getPapel(),
             usuario.getCliente() == null ? null : usuario.getCliente().getId(),
             usuario.getTecnico() == null ? null : usuario.getTecnico().getId()

@@ -82,6 +82,30 @@ public class ClienteService {
     }
 
     @Transactional
+    public ClienteResponse atualizarPorIdentidade(Long id, ClienteRequest dto) {
+        IdentidadeAutenticada identidade =
+            autorizacaoRecursoService.identidadeAtual();
+        if (identidade.papel() == PapelUsuario.ADMINISTRADOR) {
+            return atualizar(id, dto);
+        }
+        if (identidade.papel() != PapelUsuario.CLIENTE) {
+            throw new AcessoNegadoException();
+        }
+        if (dto.email() != null) {
+            throw new AcessoNegadoException();
+        }
+        if (dto.nome() == null || dto.nome().isBlank() || dto.nome().length() > 100) {
+            throw new RegraNegocioException("Nome inválido");
+        }
+
+        Cliente cliente = buscarEntity(id);
+        autorizacaoRecursoService.exigirAcessoAoCadastroCliente(identidade, cliente);
+        cliente.setNome(dto.nome());
+        cliente.setTelefone(dto.telefone());
+        return ClienteResponse.de(cliente);
+    }
+
+    @Transactional
     public void excluir(Long id) {
         autorizacaoRecursoService.exigirAdministrador(
             autorizacaoRecursoService.identidadeAtual()

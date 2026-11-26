@@ -244,6 +244,28 @@ class RbacSecurityTests {
                 .with(httpBasic(CLIENTE_EMAIL, SENHA)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(cliente.getId()));
+        mockMvc.perform(escrita(
+                put("/clientes/{id}", cliente.getId()),
+                CLIENTE_EMAIL,
+                csrfCliente
+            )
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {"nome":"Cliente RBAC atualizado","telefone":"11900000000"}
+                """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.nome").value("Cliente RBAC atualizado"))
+            .andExpect(jsonPath("$.email").value(CLIENTE_EMAIL));
+        mockMvc.perform(escrita(
+                put("/clientes/{id}", cliente.getId()),
+                CLIENTE_EMAIL,
+                csrfCliente
+            )
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {"nome":"Tentativa","telefone":"11900000000","email":"outro@exemplo.invalid"}
+                """))
+            .andExpect(status().isForbidden());
         mockMvc.perform(get(
                 "/chamados/{chamadoId}/comentarios",
                 chamadoId
@@ -273,6 +295,24 @@ class RbacSecurityTests {
             .andExpect(status().isForbidden());
 
         mockMvc.perform(escrita(
+                post("/chamados"),
+                CLIENTE_EMAIL,
+                csrfCliente
+            )
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "titulo":"Chamado criado pelo cliente",
+                  "descricao":"O proprietário é definido pela identidade",
+                  "prioridade":"MEDIA",
+                  "categoriaId":%d
+                }
+                """.formatted(categoriaDoChamado.getId())))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.clienteId").value(cliente.getId()))
+            .andExpect(jsonPath("$.tecnicoId").doesNotExist());
+
+        mockMvc.perform(escrita(
                 put("/chamados/{id}", chamadoId),
                 CLIENTE_EMAIL,
                 csrfCliente
@@ -288,6 +328,24 @@ class RbacSecurityTests {
                 }
                 """.formatted(cliente.getId(), categoriaDoChamado.getId())))
             .andExpect(status().isForbidden());
+
+        mockMvc.perform(escrita(
+                put("/chamados/{id}", chamadoId),
+                CLIENTE_EMAIL,
+                csrfCliente
+            )
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "titulo":"Chamado próprio atualizado",
+                  "descricao":"Somente campos autorizados",
+                  "prioridade":"ALTA",
+                  "categoriaId":%d
+                }
+                """.formatted(categoriaDoChamado.getId())))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.clienteId").value(cliente.getId()))
+            .andExpect(jsonPath("$.titulo").value("Chamado próprio atualizado"));
 
         mockMvc.perform(escrita(
                 patch("/chamados/{id}/status", chamadoId),
@@ -313,9 +371,21 @@ class RbacSecurityTests {
             )
             .contentType(MediaType.APPLICATION_JSON)
             .content("""
-                {"texto":"Comentário não autorizado","autor":"Cliente RBAC"}
+                {"texto":"Comentário autorizado do cliente"}
                 """))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.autor").value(CLIENTE_EMAIL));
+        mockMvc.perform(escrita(
+                post("/chamados/{chamadoId}/comentarios", chamadoId),
+                TECNICO_EMAIL,
+                csrfTecnico
+            )
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {"texto":"Comentário autorizado do técnico"}
+                """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.autor").value(TECNICO_EMAIL));
     }
 
     @Test

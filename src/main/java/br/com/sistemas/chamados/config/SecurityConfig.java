@@ -65,8 +65,6 @@ public class SecurityConfig {
                 ).hasAnyRole("CLIENTE", "ADMINISTRADOR")
                 .requestMatchers(
                     idEndpoint(HttpMethod.GET, "/tecnicos"),
-                    idEndpoint(HttpMethod.PUT, "/chamados"),
-                    idEndpoint(HttpMethod.PUT, "/clientes"),
                     idEndpoint(HttpMethod.PUT, "/tecnicos"),
                     idEndpoint(HttpMethod.PUT, "/categorias"),
                     idEndpoint(HttpMethod.DELETE, "/chamados"),
@@ -76,17 +74,24 @@ public class SecurityConfig {
                 ).hasRole("ADMINISTRADOR")
                 .requestMatchers(
                     HttpMethod.POST,
-                    "/chamados",
                     "/clientes",
                     "/tecnicos",
                     "/categorias"
                 ).hasRole("ADMINISTRADOR")
+                .requestMatchers(HttpMethod.POST, "/chamados")
+                    .hasAnyRole("CLIENTE", "ADMINISTRADOR")
+                .requestMatchers(
+                    idEndpoint(HttpMethod.PUT, "/chamados")
+                ).hasAnyRole("CLIENTE", "ADMINISTRADOR")
+                .requestMatchers(
+                    idEndpoint(HttpMethod.PUT, "/clientes")
+                ).hasAnyRole("CLIENTE", "ADMINISTRADOR")
                 .requestMatchers(
                     regexEndpoint(HttpMethod.GET, "^/chamados/[0-9]+/comentarios$")
                 ).hasAnyRole("CLIENTE", "TECNICO", "ADMINISTRADOR")
                 .requestMatchers(
                     regexEndpoint(HttpMethod.POST, "^/chamados/[0-9]+/comentarios$")
-                ).hasRole("ADMINISTRADOR")
+                ).hasAnyRole("CLIENTE", "TECNICO", "ADMINISTRADOR")
                 .requestMatchers(
                     regexEndpoint(
                         HttpMethod.PATCH,

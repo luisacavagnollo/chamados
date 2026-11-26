@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,8 @@ import br.com.sistemas.chamados.dto.AtribuirTecnicoRequest;
 import br.com.sistemas.chamados.dto.AlterarStatusRequest;
 import br.com.sistemas.chamados.dto.ChamadoRequest;
 import br.com.sistemas.chamados.dto.ChamadoResponse;
+import br.com.sistemas.chamados.dto.ChamadoCriacaoClienteRequest;
+import br.com.sistemas.chamados.dto.ChamadoEdicaoClienteRequest;
 
 import br.com.sistemas.chamados.entity.Categoria;
 import br.com.sistemas.chamados.entity.Chamado;
@@ -82,6 +85,44 @@ public class ChamadoService {
         Chamado salvo = repository.save(chamado);
 
         return ChamadoResponse.de(salvo);
+    }
+
+    @Transactional
+    public ChamadoResponse criarPorIdentidade(ChamadoRequest dto) {
+        IdentidadeAutenticada identidade =
+            autorizacaoRecursoService.identidadeAtual();
+
+        if (identidade.papel() == PapelUsuario.ADMINISTRADOR) {
+            return criar(dto);
+        }
+        if (identidade.papel() != PapelUsuario.CLIENTE) {
+            throw new AcessoNegadoException();
+        }
+        if (dto.clienteId() != null
+            || dto.tecnicoId() != null
+            || dto.status() != null) {
+            throw new AcessoNegadoException();
+        }
+        ChamadoCriacaoClienteRequest clienteDto =
+            new ChamadoCriacaoClienteRequest(
+                dto.titulo(), dto.descricao(), dto.prioridade(), dto.categoriaId()
+            );
+        validarChamadoCliente(
+            clienteDto.titulo(), clienteDto.descricao(),
+            clienteDto.prioridade(), clienteDto.categoriaId()
+        );
+
+        Cliente cliente = buscarCliente(identidade.clienteId());
+        Categoria categoria = buscarCategoria(dto.categoriaId());
+        Chamado chamado = new Chamado(
+            clienteDto.titulo(),
+            clienteDto.descricao(),
+            clienteDto.prioridade(),
+            cliente,
+            categoria,
+            null
+        );
+        return ChamadoResponse.de(repository.save(chamado));
     }
 
     @Transactional(readOnly = true)
@@ -177,6 +218,42 @@ public class ChamadoService {
         chamado.setCategoria(categoria);
         chamado.setTecnico(tecnico);
 
+        return ChamadoResponse.de(chamado);
+    }
+
+    @Transactional
+    public ChamadoResponse atualizarPorIdentidade(Long id, ChamadoRequest dto) {
+        IdentidadeAutenticada identidade =
+            autorizacaoRecursoService.identidadeAtual();
+
+        if (identidade.papel() == PapelUsuario.ADMINISTRADOR) {
+            return atualizar(id, dto);
+        }
+        if (identidade.papel() != PapelUsuario.CLIENTE) {
+            throw new AcessoNegadoException();
+        }
+        if (dto.clienteId() != null
+            || dto.tecnicoId() != null
+            || dto.status() != null) {
+            throw new AcessoNegadoException();
+        }
+        ChamadoEdicaoClienteRequest clienteDto =
+            new ChamadoEdicaoClienteRequest(
+                dto.titulo(), dto.descricao(), dto.prioridade(), dto.categoriaId()
+            );
+        validarChamadoCliente(
+            clienteDto.titulo(), clienteDto.descricao(),
+            clienteDto.prioridade(), clienteDto.categoriaId()
+        );
+
+        Chamado chamado = buscarEntity(id);
+        autorizacaoRecursoService.exigirEdicaoChamadoCliente(identidade, chamado);
+        verificarSeAbertoParaAlteracoes(chamado);
+
+        chamado.setTitulo(clienteDto.titulo());
+        chamado.setDescricao(clienteDto.descricao());
+        chamado.setPrioridade(clienteDto.prioridade());
+        chamado.setCategoria(buscarCategoria(clienteDto.categoriaId()));
         return ChamadoResponse.de(chamado);
     }
 
@@ -277,6 +354,20 @@ public class ChamadoService {
             throw new RegraNegocioException(
                 "Não é possível alterar um chamado fechado"
             );
+        }
+    }
+
+    private void validarChamadoCliente(
+        String titulo,
+        String descricao,
+        Prioridade prioridade,
+        Long categoriaId
+    ) {
+        if (titulo == null || titulo.isBlank() || titulo.length() > 150
+            || descricao == null || descricao.isBlank() || descricao.length() > 2000
+            || prioridade == null
+            || categoriaId == null || categoriaId <= 0) {
+            throw new RegraNegocioException("Dados do chamado inválidos");
         }
     }
 

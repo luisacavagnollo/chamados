@@ -46,10 +46,9 @@ public class ComentarioService {
         Long chamadoId,
         ComentarioRequest dto
     ) {
-        autorizacaoRecursoService.exigirAdministrador(
-            autorizacaoRecursoService.identidadeAtual()
-        );
         Chamado chamado = chamadoService.buscarEntidadeAutorizada(chamadoId);
+        var identidade = autorizacaoRecursoService.identidadeAtual();
+        autorizacaoRecursoService.exigirPodeComentar(identidade, chamado);
 
         if (chamado.getStatus() == StatusChamado.FECHADO) {
             throw new RegraNegocioException(
@@ -59,7 +58,7 @@ public class ComentarioService {
 
         Comentario comentario = new Comentario(
             dto.texto(),
-            dto.autor(),
+            identidade.email(),
             chamado
         );
 

@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Size;
 
 public record ClienteRequest(
     @NotBlank @Size(max = 100) String nome,
-    @NotBlank @Email @Size(max = 120) String email,
+    @Email @Size(max = 120) String email,
     @Pattern(
         regexp = "(?:\\d{10,11}|\\(\\d{2}\\) \\d{4,5}-\\d{4})?",
         message = "O telefone deve incluir DDD e conter 10 ou 11 dígitos"

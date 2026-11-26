@@ -49,7 +49,7 @@ public class ClienteController {
     public ClienteResponse atualizar(
         @PathVariable Long id,
         @Valid @RequestBody ClienteRequest dto) {
-        return service.atualizar(id, dto);
+        return service.atualizarPorIdentidade(id, dto);
     }
 
     @DeleteMapping("/{id}")

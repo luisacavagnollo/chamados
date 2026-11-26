@@ -125,10 +125,10 @@ Java 22.
 
 ## Limitações e riscos residuais
 
-- Clientes ainda não podem criar/editar chamados nem atualizar o cadastro. Esses
-  fluxos precisam vincular o cliente autenticado e limitar os campos editáveis.
-- A criação de comentários por cliente/técnico continua administrativa até que a
-  autoria seja obtida da identidade autenticada, não do DTO.
+- A etapa 4 vincula a criação e edição de chamados pelo cliente à identidade
+  autenticada e limita os campos editáveis por DTO específico.
+- Comentários de cliente/técnico são criados por `ComentarioRequest` sem `autor`;
+  o campo é derivado da identidade autenticada.
 - Técnicos não recebem uma representação reduzida dos dados de cliente; a consulta
   direta de cadastro continua restrita. A resposta atual de chamado ainda contém
   nome/ID do cliente conforme o contrato REST existente.
