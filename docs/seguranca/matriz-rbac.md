@@ -13,6 +13,10 @@ e a política de sessão stateless permanecem ativas.
 Os caminhos parametrizados aceitos pela autorização usam segmentos numéricos de ID;
 um caminho estático novo ou um subcaminho novo não herda a permissão da rota existente.
 
+Falhas de autenticação e autorização usam JSON genérico (`timestamp`, `status`,
+`erro`, `detalhes`); requisições 401 também recebem o desafio HTTP Basic. As origens
+CORS são explícitas e configuráveis por `APP_CORS_ALLOWED_ORIGINS`.
+
 ## Matriz de permissões de destino
 
 | Operação | CLIENTE | TECNICO | ADMINISTRADOR |
@@ -84,6 +88,12 @@ O uso de `anyRequest().denyAll()` exige uma decisão explícita quando novos end
 são adicionados. As autoridades são as da identidade autenticada; não se usa o campo
 de perfil legado do técnico.
 
+`GET /chamados/filtro` limita o tamanho de página a 100 registros. Páginas negativas,
+tamanho menor que 1 ou maior que 100 retornam HTTP 400. Eventos de autenticação,
+negações/CSRF e alterações de chamados são registrados sem credenciais, e-mails,
+tokens ou corpos de requisição; alterações de chamados só são registradas após
+commit.
+
 A segurança em nível de método não foi habilitada nesta etapa. As permissões por
 recurso são centralizadas nos serviços de autorização/negócio e aplicadas nas
 consultas relevantes do repositório; as rotas apenas liberam os papéis que podem
@@ -120,8 +130,10 @@ API1 — Broken Object Level Authorization.
 filtros, totais paginados, comentários, cadastro próprio, respostas HTTP e estado
 persistido. `ProtecaoPropriedadesTests` cobre os contratos de autoatendimento,
 autoria de comentários e validações de campos. A execução de
-`.\mvnw.cmd clean test` passou com **47 testes, 0 falhas, 0 erros e 0 ignorados**
-(JDK 26, target Java 21). Os cenários estão detalhados em
+`.\mvnw.cmd clean test` passou com **61 testes, 0 falhas, 0 erros e 0 ignorados**
+(JDK 26, target Java 21). A nova classe `TratamentoErrosSegurancaTests` cobre os
+contratos de erro, CORS, logs minimizados, configuração de teste e paginação. Os
+cenários estão detalhados em
 [autorizacao-recurso.md](./autorizacao-recurso.md).
 
 ## Limitações atuais
@@ -131,3 +143,6 @@ autoria de comentários e validações de campos. A execução de
 - O frontend ainda não foi integrado ao RBAC, HTTP Basic ou CSRF.
 - Não há gerenciamento de permissões, cadastro de contas ou fluxo de recuperação de
   acesso nesta entrega.
+- Os logs não são um registro de auditoria imutável nem possuem retenção ou alertas
+  configurados. Preflight CORS com origem rejeitada é bloqueado sem cabeçalho CORS e
+  pode usar o corpo padrão do processador CORS, fora do JSON dos handlers de segurança.

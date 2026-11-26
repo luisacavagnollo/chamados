@@ -8,6 +8,7 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +37,7 @@ import br.com.sistemas.chamados.repository.ClienteRepository;
 import br.com.sistemas.chamados.repository.ComentarioRepository;
 import br.com.sistemas.chamados.repository.TecnicoRepository;
 import br.com.sistemas.chamados.security.IdentidadeAutenticada;
+import br.com.sistemas.chamados.security.SecurityAuditEvent;
 
 @Service
 public class ChamadoService {
@@ -46,6 +48,7 @@ public class ChamadoService {
     private final TecnicoRepository tecnicoRepository;
     private final ComentarioRepository comentarioRepository;
     private final AutorizacaoRecursoService autorizacaoRecursoService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public ChamadoService(
         ChamadoRepository repository,
@@ -53,7 +56,8 @@ public class ChamadoService {
         CategoriaRepository categoriaRepository,
         TecnicoRepository tecnicoRepository,
         ComentarioRepository comentarioRepository,
-        AutorizacaoRecursoService autorizacaoRecursoService
+        AutorizacaoRecursoService autorizacaoRecursoService,
+        ApplicationEventPublisher eventPublisher
     ) {
         this.repository = repository;
         this.clienteRepository = clienteRepository;
@@ -61,13 +65,14 @@ public class ChamadoService {
         this.tecnicoRepository = tecnicoRepository;
         this.comentarioRepository = comentarioRepository;
         this.autorizacaoRecursoService = autorizacaoRecursoService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
     public ChamadoResponse criar(ChamadoRequest dto) {
-        autorizacaoRecursoService.exigirAdministrador(
-            autorizacaoRecursoService.identidadeAtual()
-        );
+        IdentidadeAutenticada identidade =
+            autorizacaoRecursoService.identidadeAtual();
+        autorizacaoRecursoService.exigirAdministrador(identidade);
 
         Cliente cliente = buscarCliente(dto.clienteId());
         Categoria categoria = buscarCategoria(dto.categoriaId());
@@ -83,6 +88,7 @@ public class ChamadoService {
         );
 
         Chamado salvo = repository.save(chamado);
+        publicarEvento("CRIACAO", identidade, salvo.getId());
 
         return ChamadoResponse.de(salvo);
     }
@@ -105,7 +111,9 @@ public class ChamadoService {
             categoria,
             null
         );
-        return ChamadoResponse.de(repository.save(chamado));
+        Chamado salvo = repository.save(chamado);
+        publicarEvento("CRIACAO", identidade, salvo.getId());
+        return ChamadoResponse.de(salvo);
     }
 
     @Transactional(readOnly = true)
@@ -183,9 +191,9 @@ public class ChamadoService {
         Long id,
         ChamadoRequest dto
     ) {
-        autorizacaoRecursoService.exigirAdministrador(
-            autorizacaoRecursoService.identidadeAtual()
-        );
+        IdentidadeAutenticada identidade =
+            autorizacaoRecursoService.identidadeAtual();
+        autorizacaoRecursoService.exigirAdministrador(identidade);
         Chamado chamado = buscarEntity(id);
 
         verificarSeAbertoParaAlteracoes(chamado);
@@ -201,6 +209,7 @@ public class ChamadoService {
         chamado.setCategoria(categoria);
         chamado.setTecnico(tecnico);
 
+        publicarEvento("EDICAO", identidade, chamado.getId());
         return ChamadoResponse.de(chamado);
     }
 
@@ -223,6 +232,7 @@ public class ChamadoService {
         chamado.setDescricao(dto.descricao());
         chamado.setPrioridade(dto.prioridade());
         chamado.setCategoria(buscarCategoria(dto.categoriaId()));
+        publicarEvento("EDICAO", identidade, chamado.getId());
         return ChamadoResponse.de(chamado);
     }
 
@@ -231,9 +241,9 @@ public class ChamadoService {
         Long chamadoId,
         AtribuirTecnicoRequest dto
     ) {
-        autorizacaoRecursoService.exigirAdministrador(
-            autorizacaoRecursoService.identidadeAtual()
-        );
+        IdentidadeAutenticada identidade =
+            autorizacaoRecursoService.identidadeAtual();
+        autorizacaoRecursoService.exigirAdministrador(identidade);
         Chamado chamado = buscarEntity(chamadoId);
 
         verificarSeAbertoParaAlteracoes(chamado);
@@ -242,6 +252,7 @@ public class ChamadoService {
 
         chamado.setTecnico(tecnico);
 
+        publicarEvento("ATRIBUICAO_TECNICO", identidade, chamado.getId());
         return ChamadoResponse.de(chamado);
     }
 
@@ -273,14 +284,15 @@ public class ChamadoService {
             chamado.setDataFechamento(null);
         }
 
+        publicarEvento("ALTERACAO_STATUS", identidade, chamado.getId());
         return ChamadoResponse.de(chamado);
     }
 
     @Transactional
     public void excluir(Long id) {
-        autorizacaoRecursoService.exigirAdministrador(
-            autorizacaoRecursoService.identidadeAtual()
-        );
+        IdentidadeAutenticada identidade =
+            autorizacaoRecursoService.identidadeAtual();
+        autorizacaoRecursoService.exigirAdministrador(identidade);
         Chamado chamado = buscarEntity(id);
 
         if (!comentarioRepository.findByChamadoId(id).isEmpty()) {
@@ -289,6 +301,7 @@ public class ChamadoService {
             );
         }
 
+        publicarEvento("EXCLUSAO", identidade, chamado.getId());
         repository.delete(chamado);
     }
 
@@ -368,5 +381,18 @@ public class ChamadoService {
                     "Técnico " + id + " não encontrado"
                 )
             );
+    }
+
+    private void publicarEvento(
+        String operacao,
+        IdentidadeAutenticada identidade,
+        Long chamadoId
+    ) {
+        eventPublisher.publishEvent(new SecurityAuditEvent(
+            operacao,
+            identidade.usuarioId(),
+            identidade.papel(),
+            chamadoId
+        ));
     }
 }

@@ -6,6 +6,7 @@ import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,9 +20,12 @@ import br.com.sistemas.chamados.entity.Prioridade;
 import br.com.sistemas.chamados.entity.StatusChamado;
 import br.com.sistemas.chamados.service.ChamadoService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 
 @RestController
 @RequestMapping("/chamados")
+@Validated
 public class ChamadoController {
 
     private final ChamadoService service;
@@ -42,6 +46,8 @@ public class ChamadoController {
         @RequestParam(required = false) Long clienteId,
         @RequestParam(required = false) Long tecnicoId,
         @RequestParam(required = false) Long categoriaId,
+        @RequestParam(required = false) @Min(0) Integer page,
+        @RequestParam(required = false) @Min(1) @Max(100) Integer size,
         Pageable pageable
     ) {
         return service.filtrar(

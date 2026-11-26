@@ -7,6 +7,9 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.authentication.AuthenticationEventPublisher;
+import org.springframework.security.authentication.DefaultAuthenticationEventPublisher;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -19,13 +22,24 @@ import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
+import br.com.sistemas.chamados.security.JsonAccessDeniedHandler;
+import br.com.sistemas.chamados.security.JsonAuthenticationEntryPoint;
+
 @Configuration
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(
+        HttpSecurity http,
+        JsonAuthenticationEntryPoint authenticationEntryPoint,
+        JsonAccessDeniedHandler accessDeniedHandler
+    ) throws Exception {
         return http
             .cors(Customizer.withDefaults())
+            .exceptionHandling(exceptionHandling -> exceptionHandling
+                .authenticationEntryPoint(authenticationEntryPoint)
+                .accessDeniedHandler(accessDeniedHandler)
+            )
             .csrf(csrf -> csrf
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                 .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler() {
@@ -110,8 +124,17 @@ public class SecurityConfig {
                 ).hasRole("ADMINISTRADOR")
                 .anyRequest().denyAll()
             )
-            .httpBasic(Customizer.withDefaults())
+            .httpBasic(httpBasic -> httpBasic
+                .authenticationEntryPoint(authenticationEntryPoint)
+            )
             .build();
+    }
+
+    @Bean
+    AuthenticationEventPublisher authenticationEventPublisher(
+        ApplicationEventPublisher applicationEventPublisher
+    ) {
+        return new DefaultAuthenticationEventPublisher(applicationEventPublisher);
     }
 
     private static RegexRequestMatcher idEndpoint(HttpMethod method, String path) {

@@ -36,7 +36,7 @@ public class ClienteService {
             autorizacaoRecursoService.identidadeAtual()
         );
         if (repository.existsByEmail(dto.email())) {
-            throw new RegraNegocioException("Já existe cliente com o e-mail " + dto.email());
+            throw new RegraNegocioException("Já existe cliente com esse e-mail");
         }
         Cliente salvo = repository.save(new Cliente(dto.nome(), dto.email(), dto.telefone()));
         return ClienteResponse.de(salvo);
@@ -74,7 +74,7 @@ public class ClienteService {
         );
         Cliente cliente = buscarEntity(id);
         if (repository.existsByEmailAndIdNot(dto.email(), id)) {
-            throw new RegraNegocioException("Já existe cliente com o e-mail " + dto.email());
+            throw new RegraNegocioException("Já existe cliente com esse e-mail");
         }
         cliente.setNome(dto.nome());
         cliente.setEmail(dto.email());

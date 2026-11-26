@@ -24,7 +24,7 @@ public class TecnicoService {
     @Transactional
     public TecnicoResponse criar(TecnicoRequest dto) {
         if (repository.existsByEmail(dto.email())) {
-            throw new RegraNegocioException("Já existe técnico com o e-mail " + dto.email());
+            throw new RegraNegocioException("Já existe técnico com esse e-mail");
         }
         Tecnico salvo = repository.save(new Tecnico(dto.nome(), dto.email(), dto.perfil()));
         return TecnicoResponse.de(salvo);
@@ -44,7 +44,7 @@ public class TecnicoService {
     public TecnicoResponse atualizar(Long id, TecnicoRequest dto) {
         Tecnico tecnico = buscarEntity(id);
         if (repository.existsByEmailAndIdNot(dto.email(), id)) {
-            throw new RegraNegocioException("Já existe técnico com o e-mail " + dto.email());
+            throw new RegraNegocioException("Já existe técnico com esse e-mail");
         }
         tecnico.setNome(dto.nome());
         tecnico.setEmail(dto.email());

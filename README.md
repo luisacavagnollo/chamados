@@ -61,9 +61,11 @@ Por padrão, a API ficará disponível em:
 
 **http://localhost:8080**
 
-Todas as rotas da API exigem autenticação HTTP Basic. A inicialização normal não cria
-contas de usuário; use o perfil `demo` descrito na seção abaixo para habilitar dados
-fictícios locais.
+Na execução local, o perfil `dev` é ativado por padrão e o servidor escuta somente
+em `127.0.0.1`. O banco H2 é em memória, portanto os registros são descartados ao
+reiniciar a aplicação. Todas as rotas da API exigem autenticação HTTP Basic. A
+execução normal não cria contas de usuário; use o perfil `demo` descrito na seção
+abaixo para habilitar dados fictícios locais.
 
 Com o perfil `demo` ativo, a aplicação escuta somente em `127.0.0.1`.
 O endereço `/chamados` pode ser consultado por um cliente HTTP configurado com as
@@ -190,20 +192,32 @@ chamados/
 └── pom.xml
 ```
 
-## Banco de dados H2
+## Banco de dados e configurações locais
 
-O backend utiliza o **H2**, com as propriedades configuradas em `src/main/resources/application.properties`.
+O perfil local `dev` utiliza o **H2** em memória. A configuração cria/atualiza o
+schema para desenvolvimento local; ela não deve ser usada em produção. O console H2
+fica desabilitado e o log de SQL também.
 
-O console H2 está habilitado em:
+O perfil `test`, ativado automaticamente nos testes, usa outro banco H2 em memória,
+isolado do perfil local. Para qualquer ambiente fora de `dev`, `demo` e `test`, a
+configuração padrão valida o schema em vez de alterá-lo. Este projeto ainda não inclui
+migrações versionadas; prepare e aplique migrações antes de implantar uma base gerida.
 
-**http://localhost:8080/h2-console**
+As propriedades de conexão podem ser fornecidas por `DATABASE_URL`,
+`DATABASE_USERNAME` e `DATABASE_PASSWORD`. `DDL_AUTO` pode sobrescrever a estratégia
+do Hibernate nos perfis `dev` e `demo`; fora deles, o padrão é `validate`. Para
+ambientes geridos, mantenha `validate` e nunca habilite a atualização automática de
+schema. Não use credenciais reais no código ou em arquivos versionados.
 
-O console também passa pela autenticação HTTP Basic. No projeto, o usuário do banco
-está configurado como `sa`, com senha vazia. A URL JDBC deve ser conferida no log de
-inicialização do Spring Boot, pois **não está explicitamente definida** no
-`application.properties`.
+O CORS aceita por padrão `http://localhost:5173`, com métodos e cabeçalhos explícitos.
+Para outra origem local, configure `APP_CORS_ALLOWED_ORIGINS` com uma lista separada
+por vírgulas. A API limita páginas de `GET /chamados/filtro` a 100 itens; valores
+inválidos de página/tamanho retornam HTTP 400.
 
-**Atenção:** como não há uma URL JDBC de persistência em arquivo configurada, não conte com a preservação dos registros após reiniciar a aplicação. Para garantir persistência local entre execuções, será necessário configurar um banco H2 em arquivo ou outro banco persistente.
+Respostas de erro da API usam JSON com `timestamp`, `status`, `erro` e `detalhes`.
+Requisições sem autenticação recebem 401 e desafio HTTP Basic; requisições negadas ou
+sem CSRF válido recebem 403. Eventos de autenticação, negações e alterações de
+chamados são registrados sem incluir senhas, e-mails, tokens ou corpos de requisição.
 
 ## Comandos úteis
 
@@ -222,7 +236,7 @@ Para parar os servidores, pressione **Ctrl + C** em cada terminal.
 
 **A página abre, mas os dados não carregam:** verifique se o Spring Boot está em execução na porta 8080. As rotas agora exigem autenticação e CSRF nas operações de escrita; o frontend ainda requer integração com esses mecanismos.
 
-**Erro de CORS:** o backend está configurado para aceitar o frontend em `http://localhost:5173`. Se o Vite estiver usando outra porta, ajuste a origem permitida no `CorsConfig.java`.
+**Erro de CORS:** o backend aceita por padrão `http://localhost:5173`. Se o Vite estiver usando outra porta, defina `APP_CORS_ALLOWED_ORIGINS` no processo do backend.
 
 **`npm` não é reconhecido:** instale o Node.js e reabra o terminal.
 

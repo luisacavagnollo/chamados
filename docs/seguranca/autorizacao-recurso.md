@@ -79,21 +79,28 @@ aplica o vínculo autenticado como condição obrigatória adicional. A consulta
 contagem da página usa as mesmas condições, portanto `totalElements` e `totalPages`
 não incluem chamados fora do escopo. Busca por ID usa consultas combinadas por ID e
 proprietário/atribuição, sem retornar o objeto antes da autorização.
+O endpoint aceita páginas a partir de zero e tamanho de 1 a 100; valores inválidos
+retornam 400, e o limite máximo também é aplicado ao resolver de paginação.
 
 ## Códigos HTTP
 
 - **200:** consulta autorizada.
 - **401:** não autenticado, credenciais inválidas ou identidade com vínculo
-  inconsistente rejeitada durante autenticação.
-- **403:** autenticado sem papel ou autorização para o recurso. A resposta
-  de acesso negado usa mensagem genérica e não inclui dados do recurso.
+  inconsistente rejeitada durante autenticação. O corpo JSON contém mensagem
+  genérica e o desafio HTTP Basic.
+- **403:** autenticado sem papel/autorização para o recurso ou token CSRF ausente ou
+  inválido. Os handlers retornam JSON genérico, sem dados do recurso.
 - **404:** recurso inexistente.
 - **409:** conflito com regra de negócio, como alteração de chamado fechado.
+- **400:** DTO inválido, JSON malformado ou parâmetro de paginação fora dos limites.
+- **405/415:** método ou tipo de conteúdo não suportado.
+- **500:** falha inesperada, com resposta genérica sem detalhes técnicos.
 
 A distinção entre `403` para recurso existente sem acesso e `404` para recurso
 inexistente pode revelar a existência de um recurso. Uma política uniforme de `404`
-para certos acessos negados deverá ser avaliada antes de uma implantação real. A
-padronização completa dos corpos JSON de erro permanece para a etapa 5.
+para certos acessos negados deverá ser avaliada antes de uma implantação real.
+Rejeições de preflight CORS são feitas pelo processador CORS antes dos handlers e
+podem não usar o mesmo corpo JSON.
 
 ## Relação com OWASP API1
 
@@ -124,8 +131,10 @@ Os testes validam:
 
 ## Resultados de validação
 
-`.\mvnw.cmd clean test` terminou com **BUILD SUCCESS**: 47 testes, 0 falhas, 0 erros
-e 0 ignorados. O build compilou com `--release 21`, usando JDK 26. A cobertura da
+`.\mvnw.cmd clean test` terminou com **BUILD SUCCESS**: 61 testes, 0 falhas, 0 erros
+e 0 ignorados. O build compilou com `--release 21`, usando JDK 26.
+`TratamentoErrosSegurancaTests` cobre os novos formatos de erro, autenticação,
+negações, CORS, paginação e ausência de dados sensíveis nos logs. A cobertura da
 proteção de propriedades está em [protecao-propriedades.md](./protecao-propriedades.md).
 
 ## Limitações e riscos residuais
@@ -140,4 +149,6 @@ proteção de propriedades está em [protecao-propriedades.md](./protecao-propri
 - HTTP Basic permanece uma demonstração local; implantação real exige HTTPS e uma
   estratégia definitiva de autenticação.
 - Os testes e dados usados são fictícios e locais. A política uniforme de `404` e a
-  padronização dos corpos de erro seguem pendentes.
+  persistência/alerta de auditoria não são configuradas nesta entrega.
+- Os perfis locais `dev` e `demo` usam schema automático e dados em H2; ambientes
+  geridos exigem migrações versionadas e validação de schema.
